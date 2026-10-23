@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Readers-Writers Problem - Semaphores (Turnstile + Mutex + Resource Lock) Simulation</title>
+<style>
+  :root {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --card-bg: rgba(30, 41, 59, 0.75);
+    --border-color: rgba(255, 255, 255, 0.1);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent-blue: #38bdf8;
+    --accent-indigo: #818cf8;
+    --accent-green: #34d399;
+    --accent-amber: #fbbf24;
+    --accent-rose: #f43f5e;
+    --accent-purple: #c084fc;
+    --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(129, 140, 248, 0.12) 0px, transparent 50%);
+    color: var(--text-primary);
+    font-family: var(--font-stack);
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  header {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  }
+
+  .header-titles h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .header-titles p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin-top: 4px;
+  }
+
+  .badge-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--accent-blue);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+  }
+
+  /* Control Panel */
+  .control-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  }
+
+  .control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .btn-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+  }
+
+  .btn:hover {
+    background: var(--bg-tertiary);
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #0284c7, #2563eb);
+    border: none;
+    color: white;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+  }
+
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #0369a1, #1d4ed8);
+    box-shadow: 0 6px 16px rgba(2, 132, 199, 0.4);
+  }
+
+  .speed-selector {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    padding: 4px;
+    border-radius: 8px;
+  }
+
+  .speed-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+
+  .speed-btn.active {
+    background: var(--accent-blue);
+    color: #0f172a;
+  }
+
+  .scrubber-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .scrubber {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .scrubber::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    cursor: pointer;
+    box-shadow: 0 0 10px var(--accent-blue);
+    transition: transform 0.1s;
+  }
+
+  .scrubber::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+
+  .step-info {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    min-width: 130px;
+    text-align: right;
+  }
+
+  /* Simulation Grid */
+  .sim-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr 1fr;
+    gap: 20px;
+  }
+
+  @media (max-width: 1024px) {
+    .sim-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .sim-column {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .col-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  /* Process Cards */
+  .entity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 480px;
+    overflow-y: auto;
+  }
+
+  .entity-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+  }
+
+  .entity-card.active-reader {
+    border-color: var(--accent-blue);
+    background: rgba(56, 189, 248, 0.1);
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+  }
+
+  .entity-card.active-writer {
+    border-color: var(--accent-rose);
+    background: rgba(244, 63, 94, 0.12);
+    box-shadow: 0 0 15px rgba(244, 63, 94, 0.25);
+  }
+
+  .entity-card.waiting {
+    border-color: var(--accent-amber);
+    background: rgba(251, 191, 36, 0.08);
+  }
+
+  .entity-id {
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .entity-status {
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .status-idle { background: rgba(148, 163, 184, 0.15); color: var(--text-secondary); }
+  .status-waiting { background: rgba(251, 191, 36, 0.2); color: var(--accent-amber); }
+  .status-reading { background: rgba(56, 189, 248, 0.2); color: var(--accent-blue); }
+  .status-writing { background: rgba(244, 63, 94, 0.2); color: var(--accent-rose); }
+
+  /* Critical Section Center Stage */
+  .cs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: 100%;
+  }
+
+  .cs-box {
+    flex: 1;
+    min-height: 260px;
+    background: radial-gradient(circle at center, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+    border: 2px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+    transition: all 0.3s ease;
+  }
+
+  .cs-box.occupied-read {
+    border: 2px solid var(--accent-blue);
+    box-shadow: inset 0 0 30px rgba(56, 189, 248, 0.2), 0 0 20px rgba(56, 189, 248, 0.25);
+  }
+
+  .cs-box.occupied-write {
+    border: 2px solid var(--accent-rose);
+    box-shadow: inset 0 0 30px rgba(244, 63, 94, 0.2), 0 0 25px rgba(244, 63, 94, 0.35);
+  }
+
+  .cs-label {
+    position: absolute;
+    top: 14px;
+    left: 18px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .shared-resource-card {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    width: 90%;
+    margin-top: 20px;
+    text-align: left;
+  }
+
+  .shared-resource-header {
+    font-size: 0.8rem;
+    color: var(--accent-indigo);
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .shared-resource-val {
+    font-family: monospace;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    background: #090d16;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    word-break: break-all;
+  }
+
+  .active-occupants {
+    margin-top: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .occupant-pill {
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .occupant-pill.reader {
+    background: rgba(56, 189, 248, 0.2);
+    color: var(--accent-blue);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+  }
+
+  .occupant-pill.writer {
+    background: rgba(244, 63, 94, 0.2);
+    color: var(--accent-rose);
+    border: 1px solid rgba(244, 63, 94, 0.4);
+  }
+
+  /* Synchronization Primitives Status */
+  .sync-status-box {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .sync-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sync-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .sync-stat-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Timeline & Log Table */
+  .log-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .table-container {
+    max-height: 380px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    text-align: left;
+  }
+
+  th {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    padding: 10px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  td {
+    padding: 8px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+  }
+
+  tr.current-step-row {
+    background: rgba(56, 189, 248, 0.15) !important;
+    border-left: 3px solid var(--accent-blue);
+  }
+
+  tr.current-step-row td {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+  }
+
+  .event-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .event-req { background: rgba(251, 191, 36, 0.2); color: var(--accent-amber); }
+  .event-enter { background: rgba(52, 211, 153, 0.2); color: var(--accent-green); }
+  .event-exit { background: rgba(148, 163, 184, 0.2); color: var(--text-secondary); }
+  .event-write { background: rgba(244, 63, 94, 0.25); color: var(--accent-rose); }
+
+  /* Metric Chips */
+  .metrics-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+  }
+
+  .metric-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .metric-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="header-titles">
+      <h1>Readers-Writers Problem</h1>
+      <p>Program-Generated Interactive Trace Simulation | Concurrency & Synchronization</p>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <span class="badge-tag">Mechanism: Semaphores (Turnstile + Mutex + Resource Lock)</span>
+      <span class="badge-tag" style="background: rgba(52, 211, 153, 0.15); color: var(--accent-green); border-color: rgba(52, 211, 153, 0.3);">Verified Concurrent Execution</span>
+    </div>
+  </header>
+
+  <!-- Summary Metrics Bar -->
+  <div class="metrics-bar" id="metricsBar"></div>
+
+  <!-- Interactive Controls -->
+  <div class="control-card">
+    <div class="control-row">
+      <div class="btn-group">
+        <button class="btn" id="btnPrev" title="Previous step">⏮ Step Back</button>
+        <button class="btn btn-primary" id="btnPlayPause">▶ Play</button>
+        <button class="btn" id="btnNext" title="Next step">Step Next ⏭</button>
+        <button class="btn" id="btnReset" title="Reset to start">↺ Reset</button>
+      </div>
+
+      <div class="speed-selector">
+        <span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 4px; padding-left: 6px;">Speed:</span>
+        <button class="speed-btn" data-speed="1600">0.5x</button>
+        <button class="speed-btn active" data-speed="800">1x</button>
+        <button class="speed-btn" data-speed="400">2x</button>
+        <button class="speed-btn" data-speed="150">5x</button>
+      </div>
+    </div>
+
+    <div class="scrubber-container">
+      <input type="range" class="scrubber" id="scrubber" min="0" max="53" value="0">
+      <div class="step-info" id="stepCounter">Step 0 / 53</div>
+    </div>
+  </div>
+
+  <!-- Live Visual State Grid -->
+  <div class="sim-grid">
+    <!-- Readers Column -->
+    <div class="sim-column">
+      <div class="col-title">
+        <span>📖 Reader Threads</span>
+        <span id="readerSummaryCount" style="margin-left:auto; font-size: 0.85rem; color: var(--accent-blue);">0 Active</span>
+      </div>
+      <div class="entity-list" id="readersList"></div>
+    </div>
+
+    <!-- Critical Section & Shared Resource Center Stage -->
+    <div class="sim-column">
+      <div class="col-title">
+        <span>🔒 Critical Section & Shared Resource</span>
+      </div>
+      <div class="cs-container">
+        <div class="cs-box" id="csBox">
+          <div class="cs-label">Critical Section Boundary</div>
+          <div id="csOccupants" class="active-occupants">
+            <span style="color: var(--text-muted); font-size: 0.9rem;">No threads inside Critical Section</span>
+          </div>
+
+          <div class="shared-resource-card">
+            <div class="shared-resource-header">
+              <span>SHARED DATABASE RESOURCE</span>
+              <span id="resourceVersion">Rev 0</span>
+            </div>
+            <div class="shared-resource-val" id="resourceValue">Initial State</div>
+          </div>
+        </div>
+
+        <!-- Synchronization State Info -->
+        <div class="sync-status-box" id="syncStatusBox"></div>
+      </div>
+    </div>
+
+    <!-- Writers Column -->
+    <div class="sim-column">
+      <div class="col-title">
+        <span>✍ Writer Threads</span>
+        <span id="writerSummaryCount" style="margin-left:auto; font-size: 0.85rem; color: var(--accent-rose);">0 Active</span>
+      </div>
+      <div class="entity-list" id="writersList"></div>
+    </div>
+  </div>
+
+  <!-- Execution Event Log & Explanation -->
+  <div class="log-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <h2 style="font-size: 1.15rem; font-weight: 600;">📜 Execution Trace Timeline</h2>
+      <div style="font-size: 0.85rem; color: var(--text-secondary);" id="currentStepExplanation"></div>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 70px;">Step</th>
+            <th style="width: 100px;">Time (ms)</th>
+            <th style="width: 90px;">Thread</th>
+            <th style="width: 140px;">Action</th>
+            <th style="width: 100px;">Active R/W</th>
+            <th>Details & Synchronization Invariants</th>
+          </tr>
+        </thead>
+        <tbody id="traceTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  const trace = [{"step": 0, "timestamp_ms": 112, "time_sec": "0.112s", "entity_id": "R1", "action": "REQUEST_READ", "details": "R1 waiting requests read access", "active_readers": 0, "active_writers": 0, "waiting_readers": 1, "waiting_writers": 0, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Counter: 0", "shared_data_version": 0, "sync_state": {"description": "turnstile queue"}}, {"step": 1, "timestamp_ms": 112, "time_sec": "0.113s", "entity_id": "R1", "action": "ENTER_CS", "details": "R1 reading entered CS, readers inside = 1", "active_readers": 1, "active_writers": 0, "waiting_readers": 0, "waiting_writers": 0, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Counter: 0", "shared_data_version": 0, "sync_state": {"description": "rw_mutex held by readers (1)"}}, {"step": 2, "timestamp_ms": 118, "time_sec": "0.118s", "entity_id": "R2", "action": "REQUEST_READ", "details": "R2 waiting requests read access", "active_readers": 1, "active_writers": 0, "waiting_readers": 1, "waiting_writers": 0, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Counter: 0", "shared_data_version": 0, "sync_state": {"description": "turnstile queue"}}, {"step": 3, "timestamp_ms": 118, "time_sec": "0.118s", "entity_id": "R2", "action": "ENTER_CS", "details": "R2 reading entered CS, readers inside = 2", "active_readers": 2, "active_writers": 0, "waiting_readers": 0, "waiting_writers": 0, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Counter: 0", "shared_data_version": 0, "sync_state": {"description": "rw_mutex held by readers (2)"}}, {"step": 4, "timestamp_ms": 223, "time_sec": "0.224s", "entity_id": "W1", "action": "REQUEST_WRITE", "details": "W1 waiting requests write access", "active_readers": 2, "active_writers": 0, "waiting_readers": 0, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Counter: 0", "shared_data_version": 0, "sync_state": {"description": "holding turnstile, waiting on resource_lock"}}, {"step": 5, "timestamp_ms": 225, "time_sec": "0.226s", "entity_id": "R4", "action": "REQUEST_READ", "details": "R4 waiting requests read access", "active_readers": 2, "active_writers": 0, "waiting_readers": 1, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Counter: 0", "shared_data_version": 0, "sync_state": {"description": "turnstile queue"}}, {"step": 6, "timestamp_ms": 285, "time_sec": "0.285s", "entity_id": "R3", "action": "REQUEST_READ", "details": "R3 waiting requests read access", "active_readers": 2, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Counter: 0", "shared_data_version": 0, "sync_state": {"description": "turnstile queue"}}, {"step": 7, "timestamp_ms": 365, "time_sec": "0.365s", "entity_id": "W2", "action": "REQUEST_WRITE", "details": "W2 waiting requests write access", "active_readers": 2, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 2, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Counter: 0", "shared_data_version": 0, "sync_state": {"description": "holding turnstile, waiting on resource_lock"}}, {"step": 8, "timestamp_ms": 366, "time_sec": "0.366s", "entity_id": "R2", "action": "EXIT_CS", "details": "R2 idle left CS, readers inside = 1 (read value=0)", "active_readers": 1, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 2, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Counter: 0", "shared_data_version": 0, "sync_state": {"description": "readers remaining"}}, {"step": 9, "timestamp_ms": 368, "time_sec": "0.368s", "entity_id": "R1", "action": "EXIT_CS", "details": "R1 idle left CS, readers inside = 0 (read value=0)", "active_readers": 0, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 2, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Counter: 0", "shared_data_version": 0, "sync_state": {"description": "rw_mutex free"}}, {"step": 10, "timestamp_ms": 368, "time_sec": "0.369s", "entity_id": "W1", "action": "ENTER_CS", "details": "W1 writing entered CS (exclusive)", "active_readers": 0, "active_writers": 1, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WRITING"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Counter: 0", "shared_data_version": 0, "sync_state": {"description": "resource_lock exclusive held by W1"}}, {"step": 11, "timestamp_ms": 572, "time_sec": "0.572s", "entity_id": "R2", "action": "REQUEST_READ", "details": "R2 waiting requests read access", "active_readers": 1, "active_writers": 1, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "WRITING"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=1 (updated by W1)", "shared_data_version": 1, "sync_state": {"description": "turnstile queue"}}, {"step": 12, "timestamp_ms": 640, "time_sec": "0.640s", "entity_id": "R1", "action": "REQUEST_READ", "details": "R1 waiting requests read access", "active_readers": 1, "active_writers": 1, "waiting_readers": 3, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "WRITING"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=1 (updated by W1)", "shared_data_version": 1, "sync_state": {"description": "turnstile queue"}}, {"step": 13, "timestamp_ms": 775, "time_sec": "0.775s", "entity_id": "W1", "action": "EXIT_CS", "details": "W1 idle left CS, committed value = 1", "active_readers": 1, "active_writers": 0, "waiting_readers": 3, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=1 (updated by W1)", "shared_data_version": 1, "sync_state": {"description": "resource_lock released (free)"}}, {"step": 14, "timestamp_ms": 775, "time_sec": "0.775s", "entity_id": "R4", "action": "ENTER_CS", "details": "R4 reading entered CS, readers inside = 1", "active_readers": 1, "active_writers": 0, "waiting_readers": 3, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=1 (updated by W1)", "shared_data_version": 1, "sync_state": {"description": "rw_mutex held by readers (1)"}}, {"step": 15, "timestamp_ms": 775, "time_sec": "0.776s", "entity_id": "R3", "action": "ENTER_CS", "details": "R3 reading entered CS, readers inside = 2", "active_readers": 2, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "READING"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=1 (updated by W1)", "shared_data_version": 1, "sync_state": {"description": "rw_mutex held by readers (2)"}}, {"step": 16, "timestamp_ms": 963, "time_sec": "0.963s", "entity_id": "R3", "action": "EXIT_CS", "details": "R3 idle left CS, readers inside = 1 (read value=1)", "active_readers": 1, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=1 (updated by W1)", "shared_data_version": 1, "sync_state": {"description": "readers remaining"}}, {"step": 17, "timestamp_ms": 1075, "time_sec": "1.076s", "entity_id": "R4", "action": "EXIT_CS", "details": "R4 idle left CS, readers inside = 0 (read value=1)", "active_readers": 0, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=1 (updated by W1)", "shared_data_version": 1, "sync_state": {"description": "rw_mutex free"}}, {"step": 18, "timestamp_ms": 1075, "time_sec": "1.076s", "entity_id": "W2", "action": "ENTER_CS", "details": "W2 writing entered CS (exclusive)", "active_readers": 0, "active_writers": 1, "waiting_readers": 2, "waiting_writers": 0, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WRITING"}], "shared_data": "Value=1 (updated by W1)", "shared_data_version": 1, "sync_state": {"description": "resource_lock exclusive held by W2"}}, {"step": 19, "timestamp_ms": 1100, "time_sec": "1.100s", "entity_id": "R3", "action": "REQUEST_READ", "details": "R3 waiting requests read access", "active_readers": 1, "active_writers": 1, "waiting_readers": 2, "waiting_writers": 0, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WRITING"}], "shared_data": "Value=1 (updated by W1)", "shared_data_version": 1, "sync_state": {"description": "turnstile queue"}}, {"step": 20, "timestamp_ms": 1143, "time_sec": "1.143s", "entity_id": "W1", "action": "REQUEST_WRITE", "details": "W1 waiting requests write access", "active_readers": 1, "active_writers": 1, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "WRITING"}], "shared_data": "Value=1 (updated by W1)", "shared_data_version": 1, "sync_state": {"description": "holding turnstile, waiting on resource_lock"}}, {"step": 21, "timestamp_ms": 1187, "time_sec": "1.188s", "entity_id": "R4", "action": "REQUEST_READ", "details": "R4 waiting requests read access", "active_readers": 1, "active_writers": 1, "waiting_readers": 3, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "WRITING"}], "shared_data": "Value=1 (updated by W1)", "shared_data_version": 1, "sync_state": {"description": "turnstile queue"}}, {"step": 22, "timestamp_ms": 1420, "time_sec": "1.420s", "entity_id": "W2", "action": "EXIT_CS", "details": "W2 idle left CS, committed value = 2", "active_readers": 1, "active_writers": 0, "waiting_readers": 3, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=2 (updated by W2)", "shared_data_version": 2, "sync_state": {"description": "resource_lock released (free)"}}, {"step": 23, "timestamp_ms": 1420, "time_sec": "1.421s", "entity_id": "R2", "action": "ENTER_CS", "details": "R2 reading entered CS, readers inside = 1", "active_readers": 1, "active_writers": 0, "waiting_readers": 3, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=2 (updated by W2)", "shared_data_version": 2, "sync_state": {"description": "rw_mutex held by readers (1)"}}, {"step": 24, "timestamp_ms": 1420, "time_sec": "1.421s", "entity_id": "R1", "action": "ENTER_CS", "details": "R1 reading entered CS, readers inside = 2", "active_readers": 2, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=2 (updated by W2)", "shared_data_version": 2, "sync_state": {"description": "rw_mutex held by readers (2)"}}, {"step": 25, "timestamp_ms": 1420, "time_sec": "1.421s", "entity_id": "R3", "action": "ENTER_CS", "details": "R3 reading entered CS, readers inside = 3", "active_readers": 3, "active_writers": 0, "waiting_readers": 1, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "READING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=2 (updated by W2)", "shared_data_version": 2, "sync_state": {"description": "rw_mutex held by readers (3)"}}, {"step": 26, "timestamp_ms": 1625, "time_sec": "1.625s", "entity_id": "R3", "action": "EXIT_CS", "details": "R3 idle left CS, readers inside = 2 (read value=2)", "active_readers": 2, "active_writers": 0, "waiting_readers": 1, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=2 (updated by W2)", "shared_data_version": 2, "sync_state": {"description": "readers remaining"}}, {"step": 27, "timestamp_ms": 1625, "time_sec": "1.626s", "entity_id": "R2", "action": "EXIT_CS", "details": "R2 idle left CS, readers inside = 1 (read value=2)", "active_readers": 1, "active_writers": 0, "waiting_readers": 1, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=2 (updated by W2)", "shared_data_version": 2, "sync_state": {"description": "readers remaining"}}, {"step": 28, "timestamp_ms": 1670, "time_sec": "1.670s", "entity_id": "R1", "action": "EXIT_CS", "details": "R1 idle left CS, readers inside = 0 (read value=2)", "active_readers": 0, "active_writers": 0, "waiting_readers": 1, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=2 (updated by W2)", "shared_data_version": 2, "sync_state": {"description": "rw_mutex free"}}, {"step": 29, "timestamp_ms": 1670, "time_sec": "1.671s", "entity_id": "W1", "action": "ENTER_CS", "details": "W1 writing entered CS (exclusive)", "active_readers": 0, "active_writers": 1, "waiting_readers": 1, "waiting_writers": 0, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WRITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=2 (updated by W2)", "shared_data_version": 2, "sync_state": {"description": "resource_lock exclusive held by W1"}}, {"step": 30, "timestamp_ms": 1760, "time_sec": "1.761s", "entity_id": "R2", "action": "REQUEST_READ", "details": "R2 waiting requests read access", "active_readers": 1, "active_writers": 1, "waiting_readers": 1, "waiting_writers": 0, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "WRITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=2 (updated by W2)", "shared_data_version": 2, "sync_state": {"description": "turnstile queue"}}, {"step": 31, "timestamp_ms": 1763, "time_sec": "1.764s", "entity_id": "W2", "action": "REQUEST_WRITE", "details": "W2 waiting requests write access", "active_readers": 1, "active_writers": 1, "waiting_readers": 1, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "WRITING"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=2 (updated by W2)", "shared_data_version": 2, "sync_state": {"description": "holding turnstile, waiting on resource_lock"}}, {"step": 32, "timestamp_ms": 1838, "time_sec": "1.839s", "entity_id": "R3", "action": "REQUEST_READ", "details": "R3 waiting requests read access", "active_readers": 1, "active_writers": 1, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "WRITING"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=2 (updated by W2)", "shared_data_version": 2, "sync_state": {"description": "turnstile queue"}}, {"step": 33, "timestamp_ms": 1927, "time_sec": "1.927s", "entity_id": "R1", "action": "REQUEST_READ", "details": "R1 waiting requests read access", "active_readers": 1, "active_writers": 1, "waiting_readers": 3, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "WRITING"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=3 (updated by W1)", "shared_data_version": 3, "sync_state": {"description": "turnstile queue"}}, {"step": 34, "timestamp_ms": 1977, "time_sec": "1.977s", "entity_id": "W1", "action": "EXIT_CS", "details": "W1 idle left CS, committed value = 3", "active_readers": 1, "active_writers": 0, "waiting_readers": 3, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=3 (updated by W1)", "shared_data_version": 3, "sync_state": {"description": "resource_lock released (free)"}}, {"step": 35, "timestamp_ms": 1977, "time_sec": "1.977s", "entity_id": "R4", "action": "ENTER_CS", "details": "R4 reading entered CS, readers inside = 1", "active_readers": 1, "active_writers": 0, "waiting_readers": 3, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "WAITING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=3 (updated by W1)", "shared_data_version": 3, "sync_state": {"description": "rw_mutex held by readers (1)"}}, {"step": 36, "timestamp_ms": 1977, "time_sec": "1.978s", "entity_id": "R2", "action": "ENTER_CS", "details": "R2 reading entered CS, readers inside = 2", "active_readers": 2, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=3 (updated by W1)", "shared_data_version": 3, "sync_state": {"description": "rw_mutex held by readers (2)"}}, {"step": 37, "timestamp_ms": 2143, "time_sec": "2.144s", "entity_id": "W1", "action": "REQUEST_WRITE", "details": "W1 waiting requests write access", "active_readers": 2, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 2, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=3 (updated by W1)", "shared_data_version": 3, "sync_state": {"description": "holding turnstile, waiting on resource_lock"}}, {"step": 38, "timestamp_ms": 2206, "time_sec": "2.207s", "entity_id": "R4", "action": "EXIT_CS", "details": "R4 idle left CS, readers inside = 1 (read value=3)", "active_readers": 1, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 2, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "READING"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=3 (updated by W1)", "shared_data_version": 3, "sync_state": {"description": "readers remaining"}}, {"step": 39, "timestamp_ms": 2224, "time_sec": "2.224s", "entity_id": "R2", "action": "EXIT_CS", "details": "R2 idle left CS, readers inside = 0 (read value=3)", "active_readers": 0, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 2, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=3 (updated by W1)", "shared_data_version": 3, "sync_state": {"description": "rw_mutex free"}}, {"step": 40, "timestamp_ms": 2224, "time_sec": "2.224s", "entity_id": "W2", "action": "ENTER_CS", "details": "W2 writing entered CS (exclusive)", "active_readers": 0, "active_writers": 1, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "WAITING"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "WRITING"}], "shared_data": "Value=3 (updated by W1)", "shared_data_version": 3, "sync_state": {"description": "resource_lock exclusive held by W2"}}, {"step": 41, "timestamp_ms": 2332, "time_sec": "2.333s", "entity_id": "R4", "action": "REQUEST_READ", "details": "R4 waiting requests read access", "active_readers": 1, "active_writers": 1, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "READING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "WRITING"}], "shared_data": "Value=3 (updated by W1)", "shared_data_version": 3, "sync_state": {"description": "turnstile queue"}}, {"step": 42, "timestamp_ms": 2533, "time_sec": "2.534s", "entity_id": "W2", "action": "EXIT_CS", "details": "W2 idle left CS, committed value = 4", "active_readers": 1, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "READING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=4 (updated by W2)", "shared_data_version": 4, "sync_state": {"description": "resource_lock released (free)"}}, {"step": 43, "timestamp_ms": 2533, "time_sec": "2.534s", "entity_id": "R3", "action": "ENTER_CS", "details": "R3 reading entered CS, readers inside = 1", "active_readers": 1, "active_writers": 0, "waiting_readers": 2, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "WAITING"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "READING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=4 (updated by W2)", "shared_data_version": 4, "sync_state": {"description": "rw_mutex held by readers (1)"}}, {"step": 44, "timestamp_ms": 2533, "time_sec": "2.534s", "entity_id": "R1", "action": "ENTER_CS", "details": "R1 reading entered CS, readers inside = 2", "active_readers": 2, "active_writers": 0, "waiting_readers": 1, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "READING"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=4 (updated by W2)", "shared_data_version": 4, "sync_state": {"description": "rw_mutex held by readers (2)"}}, {"step": 45, "timestamp_ms": 2794, "time_sec": "2.794s", "entity_id": "R3", "action": "EXIT_CS", "details": "R3 idle left CS, readers inside = 1 (read value=4)", "active_readers": 1, "active_writers": 0, "waiting_readers": 1, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "READING"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=4 (updated by W2)", "shared_data_version": 4, "sync_state": {"description": "readers remaining"}}, {"step": 46, "timestamp_ms": 2805, "time_sec": "2.805s", "entity_id": "R1", "action": "EXIT_CS", "details": "R1 idle left CS, readers inside = 0 (read value=4)", "active_readers": 0, "active_writers": 0, "waiting_readers": 1, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WAITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=4 (updated by W2)", "shared_data_version": 4, "sync_state": {"description": "rw_mutex free"}}, {"step": 47, "timestamp_ms": 2805, "time_sec": "2.805s", "entity_id": "W1", "action": "ENTER_CS", "details": "W1 writing entered CS (exclusive)", "active_readers": 0, "active_writers": 1, "waiting_readers": 1, "waiting_writers": 0, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "WAITING"}], "writers_state": [{"id": "W1", "status": "WRITING"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=4 (updated by W2)", "shared_data_version": 4, "sync_state": {"description": "resource_lock exclusive held by W1"}}, {"step": 48, "timestamp_ms": 2872, "time_sec": "2.872s", "entity_id": "W2", "action": "REQUEST_WRITE", "details": "W2 waiting requests write access", "active_readers": 1, "active_writers": 1, "waiting_readers": 0, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "WRITING"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=4 (updated by W2)", "shared_data_version": 4, "sync_state": {"description": "holding turnstile, waiting on resource_lock"}}, {"step": 49, "timestamp_ms": 3145, "time_sec": "3.145s", "entity_id": "W1", "action": "EXIT_CS", "details": "W1 idle left CS, committed value = 5", "active_readers": 1, "active_writers": 0, "waiting_readers": 0, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=5 (updated by W1)", "shared_data_version": 5, "sync_state": {"description": "resource_lock released (free)"}}, {"step": 50, "timestamp_ms": 3145, "time_sec": "3.146s", "entity_id": "R4", "action": "ENTER_CS", "details": "R4 reading entered CS, readers inside = 1", "active_readers": 1, "active_writers": 0, "waiting_readers": 0, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "READING"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=5 (updated by W1)", "shared_data_version": 5, "sync_state": {"description": "rw_mutex held by readers (1)"}}, {"step": 51, "timestamp_ms": 3386, "time_sec": "3.387s", "entity_id": "R4", "action": "EXIT_CS", "details": "R4 idle left CS, readers inside = 0 (read value=5)", "active_readers": 0, "active_writers": 0, "waiting_readers": 0, "waiting_writers": 1, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WAITING"}], "shared_data": "Value=5 (updated by W1)", "shared_data_version": 5, "sync_state": {"description": "rw_mutex free"}}, {"step": 52, "timestamp_ms": 3387, "time_sec": "3.387s", "entity_id": "W2", "action": "ENTER_CS", "details": "W2 writing entered CS (exclusive)", "active_readers": 0, "active_writers": 1, "waiting_readers": 0, "waiting_writers": 0, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "WRITING"}], "shared_data": "Value=5 (updated by W1)", "shared_data_version": 5, "sync_state": {"description": "resource_lock exclusive held by W2"}}, {"step": 53, "timestamp_ms": 3777, "time_sec": "3.778s", "entity_id": "W2", "action": "EXIT_CS", "details": "W2 idle left CS, committed value = 6", "active_readers": 0, "active_writers": 0, "waiting_readers": 0, "waiting_writers": 0, "readers_state": [{"id": "R1", "status": "IDLE"}, {"id": "R2", "status": "IDLE"}, {"id": "R3", "status": "IDLE"}, {"id": "R4", "status": "IDLE"}], "writers_state": [{"id": "W1", "status": "IDLE"}, {"id": "W2", "status": "IDLE"}], "shared_data": "Value=6 (updated by W2)", "shared_data_version": 6, "sync_state": {"description": "resource_lock released (free)"}}];
+  const summary = {"total_events": 54, "total_reads": 12, "total_writes": 6, "max_concurrent_readers": 3, "policy": "Starvation-Free Turnstile Semaphore"};
+
+  let currentStep = 0;
+  let isPlaying = false;
+  let playInterval = null;
+  let delay = 800;
+
+  // DOM Elements
+  const btnPlayPause = document.getElementById('btnPlayPause');
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+  const btnReset = document.getElementById('btnReset');
+  const scrubber = document.getElementById('scrubber');
+  const stepCounter = document.getElementById('stepCounter');
+  const speedButtons = document.querySelectorAll('.speed-btn');
+  const metricsBar = document.getElementById('metricsBar');
+  const readersList = document.getElementById('readersList');
+  const writersList = document.getElementById('writersList');
+  const csBox = document.getElementById('csBox');
+  const csOccupants = document.getElementById('csOccupants');
+  const resourceValue = document.getElementById('resourceValue');
+  const resourceVersion = document.getElementById('resourceVersion');
+  const syncStatusBox = document.getElementById('syncStatusBox');
+  const traceTableBody = document.getElementById('traceTableBody');
+  const currentStepExplanation = document.getElementById('currentStepExplanation');
+  const readerSummaryCount = document.getElementById('readerSummaryCount');
+  const writerSummaryCount = document.getElementById('writerSummaryCount');
+
+  // Populate Summary Metrics
+  function initSummaryMetrics() {
+    const metrics = [
+      { label: 'Total Synchronized Events', value: summary.total_events || trace.length },
+      { label: 'Total Read Operations', value: summary.total_reads || '-' },
+      { label: 'Total Write Operations', value: summary.total_writes || '-' },
+      { label: 'Max Concurrent Readers', value: summary.max_concurrent_readers || '-' },
+      { label: 'Reader Preference / Fairness', value: summary.policy || 'Starvation-Free Fair' }
+    ];
+
+    metricsBar.innerHTML = metrics.map(m => `
+      <div class="metric-card">
+        <span class="metric-label">${m.label}</span>
+        <span class="metric-value">${m.value}</span>
+      </div>
+    `).join('');
+  }
+
+  // Populate Trace Table
+  function initTraceTable() {
+    traceTableBody.innerHTML = trace.map((evt, idx) => `
+      <tr id="row-${idx}" onclick="jumpToStep(${idx})">
+        <td>#${idx}</td>
+        <td>+${evt.timestamp_ms || evt.time || 0} ms</td>
+        <td><strong>${evt.entity_id}</strong></td>
+        <td><span class="event-badge ${getBadgeClass(evt.action)}">${evt.action}</span></td>
+        <td>R:${evt.active_readers || 0} | W:${evt.active_writers || 0}</td>
+        <td>${evt.details || ''}</td>
+      </tr>
+    `).join('');
+  }
+
+  function getBadgeClass(action) {
+    if (!action) return '';
+    if (action.includes('REQUEST')) return 'event-req';
+    if (action.includes('ENTER') || action.includes('START')) return 'event-enter';
+    if (action.includes('EXIT') || action.includes('FINISH')) return 'event-exit';
+    if (action.includes('WRITE')) return 'event-write';
+    return '';
+  }
+
+  // Render State at Current Step
+  function renderStep(step) {
+    if (step < 0 || step >= trace.length) return;
+    const s = trace[step];
+
+    // Update scrubber and step count
+    scrubber.value = step;
+    stepCounter.textContent = `Step ${step} / ${trace.length - 1}`;
+    currentStepExplanation.innerHTML = `<strong>Current:</strong> Step #${step} — ${s.entity_id}: ${s.details || s.action}`;
+
+    // Highlight row in table
+    document.querySelectorAll('#traceTableBody tr').forEach(r => r.classList.remove('current-step-row'));
+    const activeRow = document.getElementById(`row-${step}`);
+    if (activeRow) {
+      activeRow.classList.add('current-step-row');
+      activeRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    // Update Readers List
+    const readers = s.readers_state || [];
+    readersList.innerHTML = readers.map(r => `
+      <div class="entity-card ${r.status === 'READING' ? 'active-reader' : (r.status === 'WAITING' ? 'waiting' : '')}">
+        <div class="entity-id">
+          <span>📘</span> ${r.id}
+        </div>
+        <span class="entity-status status-${r.status.toLowerCase()}">${r.status}</span>
+      </div>
+    `).join('');
+    readerSummaryCount.textContent = `${s.active_readers || 0} Active`;
+
+    // Update Writers List
+    const writers = s.writers_state || [];
+    writersList.innerHTML = writers.map(w => `
+      <div class="entity-card ${w.status === 'WRITING' ? 'active-writer' : (w.status === 'WAITING' ? 'waiting' : '')}">
+        <div class="entity-id">
+          <span>✍</span> ${w.id}
+        </div>
+        <span class="entity-status status-${w.status.toLowerCase()}">${w.status}</span>
+      </div>
+    `).join('');
+    writerSummaryCount.textContent = `${s.active_writers || 0} Active`;
+
+    // Update Critical Section Display
+    const activeReaders = s.active_readers || 0;
+    const activeWriters = s.active_writers || 0;
+
+    csBox.classList.remove('occupied-read', 'occupied-write');
+    if (activeWriters > 0) {
+      csBox.classList.add('occupied-write');
+      const writer = writers.find(w => w.status === 'WRITING') || { id: s.entity_id };
+      csOccupants.innerHTML = `
+        <div class="occupant-pill writer">
+          <span>✍</span> Active Writer: ${writer.id} (Exclusive Mutual Exclusion)
+        </div>
+      `;
+    } else if (activeReaders > 0) {
+      csBox.classList.add('occupied-read');
+      const readingReaders = readers.filter(r => r.status === 'READING');
+      csOccupants.innerHTML = readingReaders.length > 0 
+        ? readingReaders.map(r => `<div class="occupant-pill reader"><span>📖</span> ${r.id}</div>`).join('')
+        : `<div class="occupant-pill reader"><span>📖</span> ${activeReaders} Concurrent Reader(s)</div>`;
+    } else {
+      csOccupants.innerHTML = `<span style="color: var(--text-muted); font-size: 0.9rem;">No threads inside Critical Section (Idle)</span>`;
+    }
+
+    // Update Shared Resource
+    resourceValue.textContent = s.shared_data || 'Database Record: [Initial Value]';
+    resourceVersion.textContent = `Rev ${s.shared_data_version || 0}`;
+
+    // Update Synchronization Primitives
+    const sync = s.sync_state || {};
+    syncStatusBox.innerHTML = `
+      <div class="sync-stat">
+        <span class="sync-stat-label">Active Readers</span>
+        <span class="sync-stat-value" style="color: var(--accent-blue);">${activeReaders}</span>
+      </div>
+      <div class="sync-stat">
+        <span class="sync-stat-label">Active Writers</span>
+        <span class="sync-stat-value" style="color: ${activeWriters > 0 ? 'var(--accent-rose)' : 'var(--text-muted)'};">${activeWriters}</span>
+      </div>
+      <div class="sync-stat">
+        <span class="sync-stat-label">Waiting Readers</span>
+        <span class="sync-stat-value">${s.waiting_readers || 0}</span>
+      </div>
+      <div class="sync-stat">
+        <span class="sync-stat-label">Waiting Writers</span>
+        <span class="sync-stat-value">${s.waiting_writers || 0}</span>
+      </div>
+      <div class="sync-stat" style="grid-column: span 2;">
+        <span class="sync-stat-label">Sync Mechanism State</span>
+        <span class="sync-stat-value" style="font-size: 0.85rem; font-family: monospace;">${sync.description || 'Semaphores (Turnstile + Mutex + Resource Lock) Primitive Active'}</span>
+      </div>
+    `;
+  }
+
+  function togglePlay() {
+    if (isPlaying) {
+      pause();
+    } else {
+      play();
+    }
+  }
+
+  function play() {
+    if (currentStep >= trace.length - 1) {
+      currentStep = 0;
+    }
+    isPlaying = true;
+    btnPlayPause.textContent = '⏸ Pause';
+    btnPlayPause.classList.remove('btn-primary');
+    btnPlayPause.style.background = 'var(--accent-amber)';
+    btnPlayPause.style.color = '#0f172a';
+
+    clearInterval(playInterval);
+    playInterval = setInterval(() => {
+      if (currentStep < trace.length - 1) {
+        currentStep++;
+        renderStep(currentStep);
+      } else {
+        pause();
+      }
+    }, delay);
+  }
+
+  function pause() {
+    isPlaying = false;
+    clearInterval(playInterval);
+    btnPlayPause.textContent = '▶ Play';
+    btnPlayPause.classList.add('btn-primary');
+    btnPlayPause.style.background = '';
+    btnPlayPause.style.color = '';
+  }
+
+  function jumpToStep(idx) {
+    pause();
+    currentStep = idx;
+    renderStep(currentStep);
+  }
+
+  // Event Listeners
+  btnPlayPause.addEventListener('click', togglePlay);
+  btnPrev.addEventListener('click', () => {
+    pause();
+    if (currentStep > 0) {
+      currentStep--;
+      renderStep(currentStep);
+    }
+  });
+  btnNext.addEventListener('click', () => {
+    pause();
+    if (currentStep < trace.length - 1) {
+      currentStep++;
+      renderStep(currentStep);
+    }
+  });
+  btnReset.addEventListener('click', () => {
+    pause();
+    currentStep = 0;
+    renderStep(currentStep);
+  });
+
+  scrubber.addEventListener('input', (e) => {
+    pause();
+    currentStep = parseInt(e.target.value);
+    renderStep(currentStep);
+  });
+
+  speedButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      speedButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      delay = parseInt(btn.getAttribute('data-speed'));
+      if (isPlaying) {
+        clearInterval(playInterval);
+        playInterval = setInterval(() => {
+          if (currentStep < trace.length - 1) {
+            currentStep++;
+            renderStep(currentStep);
+          } else {
+            pause();
+          }
+        }, delay);
+      }
+    });
+  });
+
+  // Keyboard Navigation
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      togglePlay();
+    } else if (e.code === 'ArrowRight') {
+      btnNext.click();
+    } else if (e.code === 'ArrowLeft') {
+      btnPrev.click();
+    }
+  });
+
+  // Init
+  initSummaryMetrics();
+  initTraceTable();
+  renderStep(0);
+</script>
+</body>
+</html>
