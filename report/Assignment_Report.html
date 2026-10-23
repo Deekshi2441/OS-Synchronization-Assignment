@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Operating Systems Assignment Report</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    color: #1e293b;
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 24px;
+    background: #ffffff;
+  }
+  h1 { font-size: 2rem; color: #0f172a; margin-bottom: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
+  h2 { font-size: 1.45rem; color: #1e293b; margin-top: 32px; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; }
+  h3 { font-size: 1.2rem; color: #334155; margin-top: 24px; margin-bottom: 8px; }
+  h4 { font-size: 1.05rem; color: #475569; margin-top: 16px; margin-bottom: 6px; }
+  p { margin-bottom: 12px; }
+  blockquote {
+    border-left: 4px solid #3b82f6;
+    background: #f8fafc;
+    padding: 12px 18px;
+    margin: 16px 0;
+    font-style: italic;
+    color: #334155;
+    border-radius: 0 8px 8px 0;
+  }
+  pre {
+    background: #0f172a;
+    color: #f8fafc;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 0.9rem;
+    margin: 16px 0;
+  }
+  code {
+    font-family: Consolas, Monaco, "Courier New", monospace;
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 0.92rem;
+  }
+  th, td {
+    padding: 10px 14px;
+    border: 1px solid #cbd5e1;
+    text-align: left;
+  }
+  th { background: #f1f5f9; font-weight: 600; }
+  li { margin-left: 24px; margin-bottom: 6px; }
+  hr { border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0; }
+  .img-container { margin: 24px 0; text-align: center; }
+  .img-container img { max-width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .caption { font-size: 0.85rem; color: #64748b; margin-top: 8px; font-style: italic; }
+  @media print {
+    body { max-width: 100%; margin: 0; padding: 20px; }
+    pre, blockquote, table { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<h1>OPERATING SYSTEMS PROGRAMMING ASSIGNMENT REPORT</h1>
+<h2>AI-Assisted Classical Synchronization Algorithms with Program-Generated HTML Simulation</h2>
+<h3>Readers-Writers Problem and Dining Philosophers Problem</h3>
+<hr>
+<h2>Academic Integrity & Authorship Declaration</h2>
+<blockquote><em>"I declare that I have personally tested and understood the submitted programs. I have disclosed the AI tools and external resources used in developing this assignment. I can explain the synchronization logic, generated HTML simulation, and modifications made to the code. I have not knowingly submitted another student’s work or unacknowledged third-party material as my own."</em></blockquote>
+<p><strong>Student Name:</strong> <em>[Student Full Name]</em>  </p>
+<p><strong>USN / Registration Number:</strong> <em>[Student USN]</em>  </p>
+<p><strong>Course Code & Title:</strong> Operating Systems (CS / IT)  </p>
+<p><strong>Date of Submission:</strong> October 2026  </p>
+<hr>
+<h2>1. Problem Statement & Synchronization Objectives</h2>
+<p>In multi-threaded concurrent programming and operating system kernel design, coordinating concurrent access to shared resources is paramount to prevent data inconsistency, system instability, and process deadlock. This assignment investigates and implements four classical process synchronization algorithms across two problem formulations:</p>
+<p>1. <strong>Readers-Writers Problem:</strong></p>
+<p>   - <strong>Scenario:</strong> A shared dataset / database is accessed concurrently by two categories of threads: <em>Readers</em>, which solely query the shared data without mutating it, and <em>Writers</em>, which update or modify the shared state.</p>
+<p>   - <strong>Synchronization Objective:</strong> Multiple readers must be allowed to read the resource concurrently without blocking one another. However, writers require strictly exclusive access: when a writer is actively updating the resource, no other writer or reader may enter the critical section. The implementation must prevent both race conditions and starvation (neither readers nor writers should be indefinitely postponed).</p>
+<p>   - <strong>Implementations:</strong> </p>
+<p>     1. Semaphore-based with FIFO turnstile starvation prevention.</p>
+<p>     2. Monitor-based with condition variables and writer-preference discipline.</p>
+<p>2. <strong>Dining Philosophers Problem (4 Philosophers):</strong></p>
+<p>   - <strong>Scenario:</strong> Exactly four philosophers ($P_0, P_1, P_2, P_3$) sit around a circular dining table. Between every adjacent pair of philosophers lies a shared resource: a fork ($F_0, F_1, F_2, F_3$). To eat, each philosopher requires two adjacent forks simultaneously (Left Fork $F_i$ and Right Fork $F_{(i+1)\%4}$).</p>
+<p>   - <strong>Synchronization Objective:</strong> Philosophers alternate between Thinking, Hungry, Eating, and Releasing states. Because adjacent philosophers compete for the same shared fork, they cannot eat simultaneously. The synchronization mechanism must prevent deadlock (a state where every philosopher holds one fork and waits indefinitely for another) and starvation (ensuring every philosopher eventually eats).</p>
+<p>   - <strong>Implementations:</strong></p>
+<p>     1. Semaphore-based using a Footman / Room counting semaphore ($N-1=3$ capacity).</p>
+<p>     2. Monitor-based using Condition Variables with atomic neighbor state checking.</p>
+<hr>
+<h2>2. Explanation of Readers-Writers Implementations</h2>
+<h3>2.1 Semaphore-Based Solution</h3>
+<h4>Architecture & Primitives</h4>
+<p>The semaphore-based solution utilizes three distinct binary semaphores and a shared integer counter:</p>
+<li><code>rw_mutex</code> (<code>Semaphore(1)</code>): Controls mutual exclusion for the critical section. It is held by either a writer or the collective group of active readers.</li>
+<li><code>mutex</code> (<code>Semaphore(1)</code>): Protects atomic read/modify/write operations on the shared <code>read_count</code> variable.</li>
+<li><code>turnstile</code> (<code>Semaphore(1)</code>): A service queue semaphore enforcing first-come, first-served (FIFO) discipline to eliminate writer starvation.</li>
+<li><code>read_count</code>: An integer tracking the number of reader threads currently active within the critical section.</li>
+<h4>Algorithmic Invariants</h4>
+<p>1. <strong>First-Reader Locks, Last-Reader Unlocks:</strong>  </p>
+<p>   When a reader arrives, it increments <code>read_count</code>. If <code>read_count == 1</code> (the first reader), it acquires <code>rw_mutex</code>, locking out all writers. Subsequent readers increment <code>read_count</code> and proceed directly to read concurrently without acquiring <code>rw_mutex</code>. Upon departure, each reader decrements <code>read_count</code>. Only when <code>read_count == 0</code> (the last reader exiting) is <code>rw_mutex</code> released.</p>
+<p>2. <strong>Turnstile Fairness:</strong>  </p>
+<p>   In naive implementations, a continuous stream of readers can starve waiting writers. To prevent this, both readers and writers pass through <code>turnstile</code>. When a writer arrives, it acquires <code>turnstile</code>, preventing subsequent readers from entering, while allowing currently reading readers to finish. Once the critical section drains, the writer immediately executes.</p>
+<pre><code>
+# Reader Routine
+turnstile.acquire()
+mutex.acquire()
+read_count += 1
+if read_count == 1:
+    rw_mutex.acquire()
+mutex.release()
+turnstile.release()
+
+# CRITICAL SECTION (Concurrent Reading)
+data = shared_resource.read()
+
+mutex.acquire()
+read_count -= 1
+if read_count == 0:
+    rw_mutex.release()
+mutex.release()
+</pre>
+<pre><code>
+# Writer Routine
+turnstile.acquire()
+rw_mutex.acquire()
+turnstile.release()
+
+# CRITICAL SECTION (Exclusive Writing)
+shared_resource.write(new_data)
+
+rw_mutex.release()
+</pre>
+<hr>
+<h3>2.2 Monitor-Based Solution</h3>
+<h4>Architecture & Abstraction</h4>
+<p>In high-level languages without a native <code>monitor</code> keyword, an equivalent monitor abstraction is constructed via an explicit class that encapsulates internal state variables, an internal mutual exclusion lock (<code>threading.Lock()</code>), and two condition variables:</p>
+<li><code>can_read</code> (<code>threading.Condition</code>): Condition variable on which arriving readers suspend if a writer is active or waiting.</li>
+<li><code>can_write</code> (<code>threading.Condition</code>): Condition variable on which arriving writers suspend if any readers or another writer are active.</li>
+<h4>Monitor Invariants & Procedures</h4>
+<li><strong><code>start_read(reader_id)</code>:</strong>  </li>
+<p>  Acquires monitor lock. Increments <code>waiting_readers</code>. While <code>active_writers > 0</code> or <code>waiting_writers > 0</code>, invokes <code>can_read.wait()</code>. Upon waking, decrements <code>waiting_readers</code>, increments <code>active_readers</code>, and proceeds.</p>
+<li><strong><code>end_read(reader_id)</code>:</strong>  </li>
+<p>  Acquires monitor lock. Decrements <code>active_readers</code>. If <code>active_readers == 0</code> and <code>waiting_writers > 0</code>, invokes <code>can_write.notify()</code>.</p>
+<li><strong><code>start_write(writer_id)</code>:</strong>  </li>
+<p>  Acquires monitor lock. Increments <code>waiting_writers</code>. While <code>active_readers > 0</code> or <code>active_writers > 0</code>, invokes <code>can_write.wait()</code>. Sets <code>active_writers = 1</code>.</p>
+<li><strong><code>end_write(writer_id)</code>:</strong>  </li>
+<p>  Acquires monitor lock. Resets <code>active_writers = 0</code>. If <code>waiting_writers > 0</code>, signals <code>can_write.notify()</code>; otherwise broadcasts <code>can_read.notify_all()</code>.</p>
+<hr>
+<h2>3. Explanation of Dining Philosophers Implementations (4 Philosophers)</h2>
+<h3>3.1 Semaphore-Based Solution</h3>
+<h4>Problem Geometry ($N = 4$)</h4>
+<li>Philosophers: $P_0, P_1, P_2, P_3$</li>
+<li>Forks: $F_0, F_1, F_2, F_3$ where Left Fork $= i$, Right Fork $= (i+1)\%4$.</li>
+<li>Shared Resources: Array of 4 binary semaphores <code>forks = [Semaphore(1) for _ in range(4)]</code>.</li>
+<h4>Deadlock Prevention via Footman / Room Semaphore</h4>
+<p>The classic formulation of the Dining Philosophers problem deadlocks if all philosophers become hungry simultaneously and each picks up their left fork, creating a circular wait chain ($P_0 \to F_1 \to P_1 \to F_2 \to P_2 \to F_3 \to P_3 \to F_0 \to P_0$).</p>
+<p>To prevent this deadlock, we implement the <strong>Footman (Room Capacity) Semaphore</strong>:</p>
+<pre><code>
+room = threading.Semaphore(3)  # Maximum N - 1 diners
+</pre>
+<h4>Mathematical Proof of Deadlock Freedom</h4>
+<p>1. <strong>Table Capacity Bound:</strong> At most $N - 1 = 3$ philosophers are permitted inside the dining room simultaneously.</p>
+<p>2. <strong>Resource Availability:</strong> There are 4 total forks available in the room.</p>
+<p>3. <strong>Pigeonhole Principle:</strong> When at most 3 philosophers compete for 4 resources, where each philosopher requires at most 2 forks, it is impossible for all 3 philosophers to each hold 1 fork and wait for another without at least one fork remaining unallocated.</p>
+<p>4. Specifically, by the Pigeonhole Principle:</p>
+<p>   $$\sum_{i=1}^{k} \text{held\_forks}_i \le 4 \quad (k \le 3)$$</p>
+<p>   If each of the 3 philosophers had picked up 1 fork (3 forks held), 1 fork remains free on the table. The philosopher adjacent to this free fork is guaranteed to acquire their second fork, transition to <code>EATING</code>, complete their meal, and release both forks.</p>
+<p>5. Consequently, circular waiting is mathematically impossible, and the system is provably deadlock-free.</p>
+<hr>
+<h3>3.2 Monitor-Based Solution</h3>
+<h4>Architecture & Abstraction</h4>
+<p>The monitor implementation encapsulates the state of all 4 philosophers in an array <code>state = [THINKING, HUNGRY, EATING] * 4</code> and creates an array of condition variables <code>self_cond = [Condition(lock) for _ in range(4)]</code>.</p>
+<h4>Core Procedures & The Atomic Neighbor Test</h4>
+<li><strong><code>pickup_forks(i)</code>:</strong>  </li>
+<p>  Within the monitor lock, sets <code>state[i] = HUNGRY</code>. Invokes the helper <code>_test(i)</code>. If <code>state[i] != EATING</code>, blocks on <code>self_cond[i].wait()</code>.</p>
+<li><strong><code>putdown_forks(i)</code>:</strong>  </li>
+<p>  Within the monitor lock, sets <code>state[i] = THINKING</code>, releases both forks, and invokes <code>_test(left_neighbor)</code> and <code>_test(right_neighbor)</code>.</p>
+<li><strong><code>_test(i)</code> Helper Function:</strong>  </li>
+<p>  Evaluates the fundamental state invariant:</p>
+<p>  $$\text{state}[i] == \text{HUNGRY} \land \text{state}[(i+3)\%4] \ne \text{EATING} \land \text{state}[(i+1)\%4] \ne \text{EATING}$$</p>
+<p>  If and only if both neighbors are not eating, philosopher $i$ transitions to <code>EATING</code>, claims both forks simultaneously, and notifies <code>self_cond[i]</code>.</p>
+<h4>Deadlock Elimination</h4>
+<p>Because a philosopher only claims forks when <em>both</em> are guaranteed to be available, no philosopher can hold one fork while waiting indefinitely for another. This eliminates the Coffman <strong>Hold-and-Wait</strong> condition.</p>
+<hr>
+<h2>4. Program-Generated HTML Simulation Architecture</h2>
+<p>As mandated by Section 4 of the assignment guidelines:</p>
+<blockquote><em>"The HTML file must not be a separately hand-crafted animation that is disconnected from the submitted program. It must be generated from execution events, state transitions, logs, or data produced by the synchronization code."</em></blockquote>
+<h3>Execution Workflow</h3>
+<pre><code>
+graph LR
+    A[Concurrent Execution] --&gt; B[Thread-Safe ExecutionTracer]
+    B --&gt; C[State Snapshots Captured in Memory]
+    C --&gt; D[Summary Statistics Compilation]
+    D --&gt; E[HTML Generation Engine]
+    E --&gt; F[Self-Contained Interactive HTML Simulation]
+    F --&gt; G[Browser Inspection & Playback]
+</pre>
+<p>1. <strong>Instrumentation:</strong> Each Python program instantiates a thread-safe <code>ExecutionTracer</code> synchronized by an internal mutex.</p>
+<p>2. <strong>Snapshot Recording:</strong> On every synchronization boundary (requesting, acquiring, entering critical section, releasing, changing state), the program captures:</p>
+<p>   - Relative execution timestamp ($t$ in milliseconds).</p>
+<p>   - Thread ID and action.</p>
+<p>   - Comprehensive state array for all participating threads.</p>
+<p>   - Resource status (shared database content/revision, fork allocations).</p>
+<p>   - Invariant explanation string.</p>
+<p>3. <strong>HTML Code Synthesis:</strong> Upon simulation completion, <code>common/html_templates.py</code> embeds the captured trace directly as a serialized JavaScript object literal (<code>const trace = [...]</code>).</p>
+<p>4. <strong>Interactive Playback:</strong> The HTML document contains zero external CDN dependencies, embedding responsive SVG graphics, dynamic status cards, timeline scrubbers, speed multipliers ($0.5\times, 1\times, 2\times, 5\times$), and step-by-step state inspection.</p>
+<hr>
+<h2>5. Sample Execution Traces</h2>
+<h3>5.1 Readers-Writers Execution Trace (Semaphore Run Sample)</h3>
+<pre><code>
+[0071ms] R2   | REQUEST_READ    | R:0 W:0 | R2 requesting entry to read. Waiting on turnstile.
+[0072ms] R2   | ENTER_CS        | R:1 W:0 | R2 entered Critical Section. (First reader locked rw_mutex)
+[0106ms] R5   | REQUEST_READ    | R:1 W:0 | R5 requesting entry to read. Waiting on turnstile.
+[0107ms] R5   | ENTER_CS        | R:2 W:0 | R5 entered Critical Section. Joined concurrent readers.
+[0150ms] R1   | REQUEST_READ    | R:2 W:0 | R1 requesting entry to read. Waiting on turnstile.
+[0150ms] R1   | ENTER_CS        | R:3 W:0 | R1 entered Critical Section. Joined concurrent readers.
+[0322ms] W2   | REQUEST_WRITE   | R:2 W:0 | W2 requesting exclusive write access. Holding turnstile.
+[0331ms] W1   | REQUEST_WRITE   | R:2 W:0 | W1 requesting exclusive write access. Holding turnstile.
+[0560ms] R2   | EXIT_CS         | R:0 W:0 | R2 exited CS. (Last reader released rw_mutex)
+[0560ms] W2   | ENTER_CS        | R:0 W:1 | W2 acquired exclusive rw_mutex and entered Critical Section.
+[0716ms] W2   | EXIT_CS         | R:0 W:0 | W2 committed modification 'Memory Segment Table Rebalanced'.
+[0716ms] W1   | ENTER_CS        | R:0 W:1 | W1 acquired exclusive rw_mutex and entered Critical Section.
+</pre>
+<p><em>Analysis:</em> Notice how multiple readers ($R_2, R_5, R_1$) held concurrent read access ($R:3, W:0$). When writer $W_2$ requested access, the turnstile queued arriving threads until the active readers drained, at which point $W_2$ entered exclusively ($R:0, W:1$).</p>
+<hr>
+<h3>5.2 Dining Philosophers Execution Trace (Monitor Run Sample)</h3>
+<pre><code>
+[0082ms] P3   | HUNGRY          | P3 called pickup_forks(). Checking neighbors (L:P2, R:P0).
+[0082ms] P3   | EATING          | P3 entered EATING state! Holding F3 & F0. (Meal #1).
+[0110ms] P1   | HUNGRY          | P1 called pickup_forks(). Checking neighbors (L:P0, R:P2).
+[0110ms] P1   | EATING          | P1 entered EATING state! Holding F1 & F2. (Meal #1).
+[0135ms] P0   | HUNGRY          | P0 called pickup_forks(). Checking neighbors (L:P3, R:P1).
+[0135ms] P0   | WAITING         | P0 blocked on self_cond[0]. One or both neighbors eating.
+[0156ms] P2   | HUNGRY          | P2 called pickup_forks(). Checking neighbors (L:P1, R:P3).
+[0156ms] P2   | WAITING         | P2 blocked on self_cond[2]. One or both neighbors eating.
+[0269ms] P1   | THINKING        | P1 putdown_forks(). Released F1, F2. Testing neighbors.
+[0328ms] P3   | THINKING        | P3 putdown_forks(). Released F3, F0. Testing neighbors.
+[0328ms] P0   | EATING          | P0 awakened and entered EATING state! Holding F0 & F1.
+[0328ms] P2   | EATING          | P2 awakened and entered EATING state! Holding F2 & F3.
+</pre>
+<p><em>Analysis:</em> Non-adjacent philosophers ($P_3$ and $P_1$) ate simultaneously, maximizing table concurrency ($2$ concurrent eaters out of $4$). Meanwhile, adjacent philosophers ($P_0$ and $P_2$) properly blocked until forks were released.</p>
+<hr>
+<h2>6. Critical Analysis: Race Conditions, Mutual Exclusion, Deadlock & Starvation</h2>
+<h3>6.1 Race Conditions</h3>
+<p>A race condition occurs when concurrent execution paths read and write shared memory without synchronization, leading to arbitrary outcomes dependent on thread scheduling. In our implementations:</p>
+<li>In Readers-Writers, <code>read_count</code> is protected by <code>mutex</code> (semaphore) or the monitor lock, guaranteeing no missed updates.</li>
+<li>In Dining Philosophers, fork state transitions occur exclusively within atomic lock boundaries.</li>
+<h3>6.2 Mutual Exclusion</h3>
+<li>Writers are guaranteed exclusive access to the shared database. At no point in any execution trace did <code>active_writers > 1</code> or <code>(active_writers == 1 and active_readers > 0)</code>.</li>
+<li>Adjacent philosophers never eat at the same time, preventing resource conflict on shared forks.</li>
+<h3>6.3 Deadlock</h3>
+<p>Deadlock requires all four Coffman conditions: Mutual Exclusion, Hold and Wait, No Preemption, and Circular Wait.</p>
+<li>In Semaphore Dining Philosophers, the <strong>Circular Wait</strong> condition is broken by limiting room occupancy to 3 philosophers.</li>
+<li>In Monitor Dining Philosophers, the <strong>Hold and Wait</strong> condition is broken by granting forks only as an atomic pair.</li>
+<h3>6.4 Starvation</h3>
+<li>In Semaphore Readers-Writers, the <code>turnstile</code> prevents reader barging and ensures writers do not starve.</li>
+<li>In Monitor Readers-Writers, writers waiting on the condition variable block newly arriving readers.</li>
+<li>In Dining Philosophers, testing neighbors on release ensures unblocked philosophers make progress.</li>
+<hr>
+<h2>7. Comparative Evaluation: Semaphores vs. Monitors</h2>
+<table border='1'><thead><tr>
+<th>Metric / Feature</th>
+<th>Semaphore-Based Approach</th>
+<th>Monitor-Based Approach</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>Abstraction Level</strong></td>
+<td>Low-level OS primitive (<code>acquire()</code> / <code>release()</code>).</td>
+<td>High-level language construct encapsulating state and operations.</td>
+</tr>
+<tr>
+<td><strong>Error Proneness</strong></td>
+<td>High: Omission of a single <code>release()</code> or out-of-order <code>acquire()</code> results in catastrophic system deadlock.</td>
+<td>Low: Mutual exclusion is maintained implicitly by entering procedures; structured condition handling.</td>
+</tr>
+<tr>
+<td><strong>Readability & Modularity</strong></td>
+<td>Synchronization logic is interleaved throughout thread functions.</td>
+<td>Clean separation: Synchronization policy is centralized inside the Monitor class.</td>
+</tr>
+<tr>
+<td><strong>Condition Signaling</strong></td>
+<td>Semaphores maintain an integer state; <code>release()</code> increments counter regardless of listeners.</td>
+<td>Condition variables are stateless cues; <code>notify()</code> has no effect if no thread is currently waiting.</td>
+</tr>
+<tr>
+<td><strong>Deadlock Vulnerability</strong></td>
+<td>Higher due to potential inverse acquisition sequences.</td>
+<td>Lower; state evaluation occurs within single-lock critical section.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>8. Simulation Screenshots</h2>
+<h3>8.1 Readers-Writers Problem Simulation</h3>
+<p><div class="img-container"><img src="../screenshots/readers_writers_semaphore.png" alt="Readers-Writers Simulation"><p class="caption">Readers-Writers Simulation</p></div></p>
+<p><em>Figure 1: Generated interactive simulation showing multiple active readers concurrently in the critical section, while waiting writers are queued via the turnstile.</em></p>
+<h3>8.2 Dining Philosophers Problem Simulation</h3>
+<p><div class="img-container"><img src="../screenshots/dining_philosophers_semaphore.png" alt="Dining Philosophers Simulation"><p class="caption">Dining Philosophers Simulation</p></div></p>
+<p><em>Figure 2: Generated interactive simulation depicting the 4-philosopher circular dining table, active fork allocations, and dynamic philosopher state transitions.</em></p>
+<hr>
+<h2>9. Viva Voce & Demonstration Preparation Guide</h2>
+<p>During evaluation and live demonstration, the following core topics can be demonstrated directly from the source code and generated simulations:</p>
+<p>1. <strong>Initial Values of Semaphores:</strong></p>
+<p>   - <code>rw_mutex = 1</code> (binary semaphore for resource access)</p>
+<p>   - <code>mutex = 1</code> (binary semaphore protecting <code>read_count</code>)</p>
+<p>   - <code>turnstile = 1</code> (binary semaphore for FIFO entry)</p>
+<p>   - <code>room = 3</code> (counting semaphore limiting table capacity to $N-1$)</p>
+<p>   - <code>fork_semaphores[4] = [1, 1, 1, 1]</code> (binary semaphores for individual forks)</p>
+<p>2. <strong>Critical Section Identification:</strong></p>
+<p>   - In Readers-Writers: <code>SharedDatabase.read()</code> and <code>SharedDatabase.write()</code> are the protected operations.</p>
+<p>   - In Dining Philosophers: Fork ownership assignment and eating behavior.</p>
+<p>3. <strong>Mesa vs. Hoare Monitor Semantics:</strong></p>
+<p>   - Python's <code>threading.Condition</code> follows Mesa semantics (Signal-and-Continue). The signaling thread continues execution; the awakened thread must re-evaluate condition predicates in a <code>while</code> loop (e.g., <code>while active_writers > 0: cond.wait()</code>) to handle potential race conditions before reacquiring the lock.</p>
+<p>4. <strong>Configurable Demonstration Parameters:</strong></p>
+<p>   - Number of readers/writers, philosopher meal counts, and execution delays can be modified directly in each file's <code>main()</code> function to demonstrate varying load dynamics.</p>
+<hr>
+<h2>10. AI Usage Summary</h2>
+<li><strong>Tools Utilized:</strong> Google DeepMind Antigravity IDE (Gemini 3.8 Flash model).</li>
+<li><strong>Scope of Assistance:</strong> Code scaffolding, assistance in formalizing turnstile FIFO semaphore patterns, SVG vector layout design for the dining table, and report structure formatting.</li>
+<li><strong>Verification:</strong> All algorithms were verified through manual inspection, edge-case simulation, and runtime trace assertion tests. Full prompt logs are documented in <a href="../ai_prompts/prompts.md"><code>ai_prompts/prompts.md</code></a>.</li>
+</body>
+</html>
