@@ -146,10 +146,10 @@ def generate_pdf():
     # Academic Integrity Declaration Box
     decl_text = (
         "<b>Academic Integrity & Authorship Declaration:</b><br/>"
-        "<i>&ldquo;I declare that I have personally tested and understood the submitted programs. "
+        "<i>\"I declare that I have personally tested and understood the submitted programs. "
         "I have disclosed the AI tools and external resources used in developing this assignment. "
         "I can explain the synchronization logic, generated HTML simulation, and modifications made to the code. "
-        "I have not knowingly submitted another student’s work or unacknowledged third-party material as my own.&rdquo;</i><br/><br/>"
+        "I have not knowingly submitted another student's work or unacknowledged third-party material as my own.\"</i><br/><br/>"
         "<b>Student Name:</b> [Student Full Name] &nbsp;&nbsp;|&nbsp;&nbsp; "
         "<b>USN / Registration No:</b> [Student USN] &nbsp;&nbsp;|&nbsp;&nbsp; "
         "<b>Course:</b> Operating Systems (CS / IT)"
