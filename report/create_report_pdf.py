@@ -153,7 +153,7 @@ def generate_pdf():
     story.append(Paragraph("OPERATING SYSTEMS - Task 2", title_style))
     story.append(Paragraph("AI-Assisted Synchronization Algorithms with Program-Generated HTML Simulation", subtitle_style))
     story.append(Paragraph("Readers-Writers Problem and Dining Philosophers Problem (Semaphores and Monitors)", topic_style))
-    story.append(Paragraph("<b>Name:</b> M G Krupa &nbsp;|&nbsp; <b>USN:</b> NNM24IS116 &nbsp;|&nbsp; <b>Course:</b> Operating Systems &nbsp;|&nbsp;<br/><b>GitHub repository:</b> https://github.com/mgkrupa06/OS_Task2", meta_style))
+    story.append(Paragraph("<b>Name:</b> Deekshi R Gowda &nbsp;|&nbsp; <b>USN:</b> NNM24IS064 &nbsp;|&nbsp; <b>Course:</b> Operating Systems &nbsp;|&nbsp;<br/><b>GitHub repository:</b> https://github.com/Deekshi2441/OS-Synchronization-Assignment", meta_style))
 
     # 1. Problem Statement and Synchronization Objective
     story.append(Paragraph("1. Problem Statement and Synchronization Objective", h1_style))

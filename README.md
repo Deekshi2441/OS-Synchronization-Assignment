@@ -5,8 +5,8 @@
 ---
 
 ## 📋 Student & Submission Metadata
-- **Student Name:** *[Student Full Name]*
-- **University Serial / USN / Reg. No.:** *[Student USN / Registration Number]*
+- **Student Name:** Deekshi R Gowda
+- **University Serial / USN / Reg. No.:** NNM24IS064
 - **Course:** Operating Systems (CS / IT)
 - **Assignment Type:** Individual Programming Assignment
 - **Academic Integrity Disclosure:** AI-assisted work developed in accordance with assignment regulations; all algorithms tested, documented, verified, and understood.
