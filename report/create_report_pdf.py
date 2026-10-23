@@ -1,16 +1,7 @@
 """
-Comprehensive ReportLab PDF generator for Operating Systems Assignment Report.
-Adheres strictly to the 10 minimum contents specified in the assignment rubric:
- 1. Problem statement & synchronization objectives
- 2. Explanation of semaphore-based Readers-Writers solution
- 3. Explanation of monitor-based Readers-Writers solution
- 4. Explanation of semaphore-based Dining Philosophers solution
- 5. Explanation of monitor-based Dining Philosophers solution
- 6. How the program records events and generates the HTML simulation
- 7. Execution traces / sequences of states for each problem
- 8. Discussion of race conditions, mutual exclusion, deadlock and starvation
- 9. Comparison between semaphore and monitor approaches
- 10. Screenshots of generated HTML simulations, AI usage summary & references
+Generates Assignment_Report.pdf matching the exact 14-section layout,
+typography, page-by-page structure, execution traces, comparison table,
+screenshots, and academic integrity declaration from the reference report.
 """
 
 import os
@@ -18,404 +9,590 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether, PageBreak, HRFlowable
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
 )
 
 REPORT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(REPORT_DIR, ".."))
 PDF_PATH = os.path.join(REPORT_DIR, "Assignment_Report.pdf")
-RW_IMG_PATH = os.path.join(PROJECT_ROOT, "screenshots", "readers_writers_semaphore.png")
-DP_IMG_PATH = os.path.join(PROJECT_ROOT, "screenshots", "dining_philosophers_semaphore.png")
+SCREENSHOTS_DIR = os.path.join(PROJECT_ROOT, "screenshots")
+
+FIG1_PATH = os.path.join(SCREENSHOTS_DIR, "fig1_rw_semaphore.png")
+FIG2_PATH = os.path.join(SCREENSHOTS_DIR, "fig2_rw_monitor.png")
+FIG3_PATH = os.path.join(SCREENSHOTS_DIR, "fig3_dp_semaphore.png")
+FIG4_PATH = os.path.join(SCREENSHOTS_DIR, "fig4_dp_monitor.png")
+
 
 def generate_pdf():
+    # 54pt margin (~0.75 in) gives clean printable area (504 x 684)
     doc = SimpleDocTemplate(
         PDF_PATH,
         pagesize=letter,
-        rightMargin=45,
-        leftMargin=45,
-        topMargin=45,
-        bottomMargin=45
+        rightMargin=54,
+        leftMargin=54,
+        topMargin=48,
+        bottomMargin=48
     )
 
     styles = getSampleStyleSheet()
 
-    # Typography styles
     title_style = ParagraphStyle(
         'DocTitle',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
-        fontSize=18,
-        leading=22,
-        textColor=colors.HexColor('#0f172a'),
+        fontSize=15,
+        leading=18,
+        textColor=colors.black,
         alignment=1,
-        spaceAfter=6
+        spaceAfter=4
     )
 
     subtitle_style = ParagraphStyle(
         'DocSubtitle',
         parent=styles['Normal'],
-        fontName='Helvetica',
-        fontSize=11,
+        fontName='Helvetica-Bold',
+        fontSize=12,
         leading=15,
-        textColor=colors.HexColor('#334155'),
+        textColor=colors.black,
         alignment=1,
-        spaceAfter=12
+        spaceAfter=3
+    )
+
+    topic_style = ParagraphStyle(
+        'DocTopic',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=10,
+        leading=13,
+        textColor=colors.black,
+        alignment=1,
+        spaceAfter=6
+    )
+
+    meta_style = ParagraphStyle(
+        'DocMeta',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        leading=12,
+        textColor=colors.black,
+        alignment=1,
+        spaceAfter=14
     )
 
     h1_style = ParagraphStyle(
-        'SectionH1',
+        'SecH1',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
-        fontSize=12.5,
-        leading=16,
-        textColor=colors.HexColor('#0284c7'),
-        spaceBefore=14,
-        spaceAfter=6,
-        keepWithNext=True
-    )
-
-    h2_style = ParagraphStyle(
-        'SectionH2',
-        parent=styles['Normal'],
-        fontName='Helvetica-Bold',
-        fontSize=10,
-        leading=14,
-        textColor=colors.HexColor('#1e293b'),
-        spaceBefore=8,
+        fontSize=11,
+        leading=15,
+        textColor=colors.black,
+        spaceBefore=10,
         spaceAfter=4,
         keepWithNext=True
     )
 
+    h2_style = ParagraphStyle(
+        'SecH2',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=9.5,
+        leading=13,
+        textColor=colors.black,
+        spaceBefore=7,
+        spaceAfter=3,
+        keepWithNext=True
+    )
+
     body_style = ParagraphStyle(
-        'BodyDark',
+        'SecBody',
         parent=styles['Normal'],
         fontName='Helvetica',
         fontSize=8.8,
-        leading=12.5,
-        textColor=colors.HexColor('#334155'),
-        spaceAfter=6
+        leading=12.2,
+        textColor=colors.black,
+        spaceAfter=5
     )
 
     bullet_style = ParagraphStyle(
-        'BulletDark',
+        'SecBullet',
         parent=body_style,
-        leftIndent=12,
-        firstLineIndent=-8,
-        spaceAfter=4
-    )
-
-    callout_style = ParagraphStyle(
-        'Callout',
-        parent=styles['Normal'],
-        fontName='Helvetica',
-        fontSize=8.5,
-        leading=12,
-        textColor=colors.HexColor('#1e40af'),
-        spaceBefore=4,
-        spaceAfter=4
+        leftIndent=14,
+        firstLineIndent=-9,
+        spaceAfter=3
     )
 
     trace_style = ParagraphStyle(
-        'TraceStyle',
+        'TraceCode',
         parent=styles['Normal'],
         fontName='Courier',
-        fontSize=7.2,
-        leading=9.5,
-        textColor=colors.HexColor('#0f172a')
+        fontSize=7.5,
+        leading=9.8,
+        textColor=colors.HexColor('#111827'),
+        leftIndent=6,
+        spaceAfter=1
     )
 
-    caption_style = ParagraphStyle(
-        'ImgCaption',
+    fig_label_style = ParagraphStyle(
+        'FigLabel',
         parent=styles['Normal'],
-        fontName='Helvetica-Oblique',
-        fontSize=8,
-        leading=10,
-        textColor=colors.HexColor('#64748b'),
-        alignment=1,
+        fontName='Helvetica-Bold',
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.black,
         spaceBefore=4,
-        spaceAfter=10
+        spaceAfter=4,
+        keepWithNext=True
     )
 
     story = []
 
-    # Title & Metadata
-    story.append(Paragraph("OPERATING SYSTEMS PROGRAMMING ASSIGNMENT REPORT", title_style))
-    story.append(Paragraph("Classical Synchronization Algorithms with Program-Generated HTML Simulation<br/>Readers-Writers Problem and Dining Philosophers Problem", subtitle_style))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0284c7'), spaceAfter=10))
+    # =========================================================================
+    # PAGE 1: Title, Section 1, Section 2, Section 3 (start)
+    # =========================================================================
+    story.append(Paragraph("OPERATING SYSTEMS - Task 2", title_style))
+    story.append(Paragraph("AI-Assisted Synchronization Algorithms with Program-Generated HTML Simulation", subtitle_style))
+    story.append(Paragraph("Readers-Writers Problem and Dining Philosophers Problem (Semaphores and Monitors)", topic_style))
+    story.append(Paragraph("<b>Name:</b> M G Krupa &nbsp;|&nbsp; <b>USN:</b> NNM24IS116 &nbsp;|&nbsp; <b>Course:</b> Operating Systems &nbsp;|&nbsp;<br/><b>GitHub repository:</b> https://github.com/mgkrupa06/OS_Task2", meta_style))
 
-    # Academic Integrity Declaration Box
-    decl_text = (
-        "<b>Academic Integrity & Authorship Declaration:</b><br/>"
-        "<i>\"I declare that I have personally tested and understood the submitted programs. "
-        "I have disclosed the AI tools and external resources used in developing this assignment. "
-        "I can explain the synchronization logic, generated HTML simulation, and modifications made to the code. "
-        "I have not knowingly submitted another student's work or unacknowledged third-party material as my own.\"</i><br/><br/>"
-        "<b>Student Name:</b> [Student Full Name] &nbsp;&nbsp;|&nbsp;&nbsp; "
-        "<b>USN / Registration No:</b> [Student USN] &nbsp;&nbsp;|&nbsp;&nbsp; "
-        "<b>Course:</b> Operating Systems (CS / IT)"
-    )
-    decl_p = Paragraph(decl_text, callout_style)
-    decl_table = Table([[decl_p]], colWidths=[520])
-    decl_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#eff6ff')),
-        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#3b82f6')),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
-        ('RIGHTPADDING', (0,0), (-1,-1), 10),
-    ]))
-    story.append(decl_table)
-    story.append(Spacer(1, 10))
-
-    # 1. Problem Statement & Synchronization Objectives
-    story.append(Paragraph("1. Problem Statement and Synchronization Objectives", h1_style))
+    # 1. Problem Statement and Synchronization Objective
+    story.append(Paragraph("1. Problem Statement and Synchronization Objective", h1_style))
     story.append(Paragraph(
-        "Process synchronization is fundamental to modern multiprocessor and multitasking operating systems. "
-        "Without rigorous concurrency control, interleaved operations cause race conditions, stale data reads, and deadlock. "
-        "This project implements and evaluates four classical synchronization algorithms across two problem models:",
+        "When multiple threads share data we don't control the order in which they run. If they aren't coordinated "
+        "the outcome can change depending on timing. This is called a race condition. In this assignment we solve "
+        "two synchronization problems. Readers-Writers and Dining Philosophers. Each using two methods: "
+        "semaphores and monitors. That makes four programs total.",
         body_style
     ))
     story.append(Paragraph(
-        "<b>1. Readers-Writers Problem:</b> Coordinates concurrent queries and modifications to a shared database record. "
-        "Multiple readers must be allowed to read concurrently, but writers require exclusive access. The system must prevent "
-        "race conditions on counters and eliminate both reader and writer starvation.",
-        bullet_style
+        "Readers-Writers. Many readers can read a shared resource at the time.. A writer must have the resource "
+        "all to themselves. The goal is to make sure a writer never runs at the time as a reader or another writer. "
+        "Readers can still share the resource. Also no one should wait forever. Everyone must eventually get what they need.",
+        body_style
     ))
     story.append(Paragraph(
-        "<b>2. Dining Philosophers Problem (4 Philosophers):</b> Four philosophers alternate between thinking and eating at a circular table. "
-        "Each meal requires holding two shared adjacent forks simultaneously. The synchronization mechanism must prevent catastrophic "
-        "circular-wait deadlock and ensure that every philosopher eventually eats without starving.",
-        bullet_style
+        "Dining Philosophers (4 philosophers). Four philosophers sit around a table. There are four forks, one "
+        "between each pair of neighbors. To eat a philosopher needs both forks next, to them. The goal is to make "
+        "sure each fork is used by one philosopher at a time. We must avoid deadlock. Where everyone is waiting. "
+        "No one can eat. We also need to talk about starvation. When someone waits long and never gets to eat.",
+        body_style
     ))
-
-    # 2. Readers-Writers Implementations
-    story.append(Paragraph("2. Readers-Writers Implementations", h1_style))
-    story.append(Paragraph("2.1 Semaphore-Based Implementation (Turnstile Fairness)", h2_style))
     story.append(Paragraph(
-        "The semaphore solution utilizes three binary semaphores: <code>mutex</code> (protecting atomic updates to <code>read_count</code>), "
-        "<code>rw_mutex</code> (protecting exclusive critical section access for writes), and <code>turnstile</code> (guaranteeing FIFO queueing). "
-        "The first reader to enter acquires <code>rw_mutex</code>, while subsequent readers join concurrently without blocking. "
-        "The last departing reader releases <code>rw_mutex</code>. Arriving writers hold the turnstile, forcing newly arriving readers to wait, "
-        "which eliminates writer starvation.",
+        "In addition every program must create an HTML simulation. This simulation must come from the data of "
+        "the program's real run not from a hand-drawn or made-up animation.",
         body_style
     ))
 
-    story.append(Paragraph("2.2 Monitor-Based Implementation (Condition Variables)", h2_style))
+    # 2. Implementation Overview
+    story.append(Paragraph("2. Implementation Overview", h1_style))
     story.append(Paragraph(
-        "The monitor solution encapsulates state variables (<code>active_readers</code>, <code>active_writers</code>, "
-        "<code>waiting_readers</code>, <code>waiting_writers</code>) within an explicit class. An internal mutex guarantees single-thread "
-        "entry into monitor methods, while condition variables <code>can_read</code> and <code>can_write</code> handle thread suspension and wakeups. "
-        "Writer preference is enforced: arriving readers block in <code>start_read()</code> if any writer is active or waiting. "
-        "Predicate evaluations are enclosed in <code>while</code> loops to strictly obey Mesa Signal-and-Continue semantics.",
+        "All programs are written in Python 3 using only the standard library (threading, json, webbrowser). Each "
+        "philosopher, reader and writer is a real thread. Random sleep times are used only to make the interleaving "
+        "visible; they never replace the synchronization primitives.",
+        body_style
+    ))
+    story.append(Paragraph("&bull; <b>readers_writers/semaphore/rw_semaphore.py</b> - Readers-Writers with semaphores", bullet_style))
+    story.append(Paragraph("&bull; <b>readers_writers/monitor/rw_monitor.py</b> - Readers-Writers with a monitor", bullet_style))
+    story.append(Paragraph("&bull; <b>dining_philosophers/semaphore/dp_semaphore.py</b> - 4 philosophers with semaphores", bullet_style))
+    story.append(Paragraph("&bull; <b>dining_philosophers/monitor/dp_monitor.py</b> - 4 philosophers with a monitor", bullet_style))
+    story.append(Paragraph("&bull; <b>common/sync_trace.py</b> - shared module that records events, checks them and generates the HTML", bullet_style))
+    story.append(Paragraph(
+        "There is no compile step. Run for example <code>python readers_writers/semaphore/rw_semaphore.py --readers 4 --writers 2 --rounds 3</code>. "
+        "The options <code>--delay</code>, <code>--seed</code> and <code>--out</code> change the speed, make timing repeatable "
+        "and choose the HTML path. After the run, the HTML file is written to <code>generated_html/</code> and opened in the browser.",
         body_style
     ))
 
-    # 3. Dining Philosophers Implementations
-    story.append(Paragraph("3. Dining Philosophers Implementations (4 Philosophers)", h1_style))
-    story.append(Paragraph("3.1 Semaphore-Based Implementation (Room Counting Semaphore)", h2_style))
+    # 3. Readers-Writers - Semaphore Solution (Start)
+    story.append(Paragraph("3. Readers-Writers - Semaphore Solution", h1_style))
     story.append(Paragraph(
-        "To break the circular wait condition in the 4-philosopher table, we introduce a Footman / Room counting semaphore initialized to "
-        "<code>N - 1 = 3</code>. At most 3 philosophers can enter the dining room and compete for forks simultaneously. "
-        "<b>Mathematical Proof of Deadlock Freedom:</b> With 4 forks and at most 3 philosophers, by the Pigeonhole Principle, at least one "
-        "philosopher is guaranteed to acquire both adjacent forks, eat, and release them. Deadlock is mathematically impossible.",
-        body_style
-    ))
-
-    story.append(Paragraph("3.2 Monitor-Based Implementation (Atomic Two-Fork Testing)", h2_style))
-    story.append(Paragraph(
-        "The monitor encapsulates each philosopher's state (<code>THINKING</code>, <code>HUNGRY</code>, <code>EATING</code>) and private condition variables. "
-        "In <code>pickup_forks(i)</code>, a philosopher only transitions to <code>EATING</code> if both neighbors are not eating: "
-        "<code>(state[left] != EATING and state[right] != EATING)</code>. Because forks are claimed as an indivisible atomic pair inside "
-        "the monitor lock, the Coffman Hold-and-Wait condition is completely eliminated.",
+        "Shared resource: a SharedDatabase object holding one integer. Its write() method reads the value, sleeps "
+        "briefly, then stores value + 1. This is deliberately not atomic: if two writers, or a writer and a reader, were "
+        "ever inside together, updates would be lost or a wrong value would be read.",
         body_style
     ))
 
     story.append(PageBreak())
 
-    # 4. Program-Generated Simulation Architecture
-    story.append(Paragraph("4. Program-Generated HTML Simulation Architecture", h1_style))
+    # =========================================================================
+    # PAGE 2: Section 3 (cont), Section 4, Section 5, Section 6 (start)
+    # =========================================================================
+    story.append(Paragraph("Critical sections: the body of a reader (reading the value) and the body of a writer (db.write()).", body_style))
+    story.append(Paragraph("Semaphores and initial values:", body_style))
+    story.append(Paragraph("&bull; <b>resource_lock (1):</b> held by one writer, or by the whole group of active readers together.", bullet_style))
+    story.append(Paragraph("&bull; <b>count_mutex (1):</b> protects the shared variable active_readers, because the counter is itself shared data.", bullet_style))
+    story.append(Paragraph("&bull; <b>turnstile (1):</b> a gate that every reader and writer passes through when requesting access. Since arrivals queue at this gate, a waiting writer blocks readers that arrive later, and readers cannot overtake it forever.", bullet_style))
     story.append(Paragraph(
-        "The HTML simulations are <b>directly generated from actual runtime execution data</b>. During program execution, a thread-safe "
-        "<code>ExecutionTracer</code> records every state transition with millisecond timestamps, thread IDs, active counts, and fork allocations. "
-        "Upon completion, <code>common/html_templates.py</code> serializes the trace into an interactive, self-contained HTML file featuring "
-        "playback controls (Play/Pause, Step Next/Back, Reset, Timeline Scrubber, Speed Multipliers), real-time critical section inspection, "
-        "and SVG circular table visualization with zero external CDN dependencies.",
+        "Reader: wait(turnstile), wait(count_mutex), increment active_readers; if it became 1, wait(resource_lock) "
+        "so writers are locked out; signal(count_mutex), signal(turnstile). Read. On exit: wait(count_mutex), "
+        "decrement; if it became 0, signal(resource_lock); signal(count_mutex).<br/>"
+        "Writer: wait(turnstile), wait(resource_lock), signal(turnstile). Write. Then signal(resource_lock).<br/>"
+        "The first reader acquires the lock on behalf of all readers and the last reader releases it, which is how "
+        "readers share while writers are excluded.",
         body_style
     ))
 
-    # Screenshots
-    story.append(Paragraph("4.1 Readers-Writers Simulation Screenshot", h2_style))
-    if os.path.exists(RW_IMG_PATH):
-        story.append(Image(RW_IMG_PATH, width=480, height=210))
-        story.append(Paragraph("Figure 1: Program-generated Readers-Writers simulation displaying active concurrent readers and exclusive writer lock status.", caption_style))
+    # 4. Readers-Writers - Monitor Solution
+    story.append(Paragraph("4. Readers-Writers - Monitor Solution", h1_style))
+    story.append(Paragraph(
+        "Python has no monitor keyword, so a monitor is built as a class (ReadersWritersMonitor) whose shared "
+        "state is only touched while holding one lock. Waiting is done with two condition variables created on that "
+        "same lock, which is the allowed equivalent abstraction.<br/>"
+        "Monitor state: active_readers, writing, waiting_writers. Condition variables: ok_to_read and ok_to_write.",
+        body_style
+    ))
+    story.append(Paragraph("&bull; <b>start_read:</b> waits until no writer is writing and no writer is waiting, then increments active_readers.", bullet_style))
+    story.append(Paragraph("&bull; <b>end_read:</b> decrements active_readers; if zero, notifies one waiting writer.", bullet_style))
+    story.append(Paragraph("&bull; <b>start_write:</b> increments waiting_writers, waits until nobody is reading or writing, then sets writing = True.", bullet_style))
+    story.append(Paragraph("&bull; <b>end_write:</b> clears writing; if writers are waiting it wakes one, otherwise it wakes all waiting readers.", bullet_style))
+    story.append(Paragraph(
+        "Because Python uses Mesa-style conditions (a woken thread must check again), the waits use "
+        "wait_for(condition), which re-checks the predicate after waking. The actual reading and writing happen "
+        "outside the entry and exit procedures, so readers can run in parallel. The policy is writer preference.",
+        body_style
+    ))
 
-    story.append(Paragraph("4.2 Dining Philosophers Simulation Screenshot", h2_style))
-    if os.path.exists(DP_IMG_PATH):
-        story.append(Image(DP_IMG_PATH, width=480, height=210))
-        story.append(Paragraph("Figure 2: Program-generated Dining Philosophers simulation showing circular table SVG, fork allocations, and state badges.", caption_style))
+    # 5. Dining Philosophers (4) - Semaphore Solution
+    story.append(Paragraph("5. Dining Philosophers (4) - Semaphore Solution", h1_style))
+    story.append(Paragraph(
+        "Philosopher i uses fork i (left) and fork (i+1) mod 4 (right). Each fork is a binary semaphore with initial "
+        "value 1, so a fork can belong to only one philosopher at a time. That gives mutual exclusion on the forks.<br/>"
+        "If every philosopher picks up the left fork and then waits for the right one, all four hold one fork and wait "
+        "forever, which is a circular wait, so deadlock. To prevent this, a counting semaphore room is initialised to "
+        "3 (N - 1). A philosopher must wait(room) before touching any fork, and signal(room) after eating. At "
+        "most three philosophers compete at once, so at least one of them can always get both forks, and the "
+        "circular wait cannot form.<br/>"
+        "Cycle of each philosopher: think, become hungry, wait(room), wait(left), wait(right), eat, signal(left), "
+        "signal(right), signal(room).",
+        body_style
+    ))
+
+    # 6. Dining Philosophers (4) - Monitor Solution (Start)
+    story.append(Paragraph("6. Dining Philosophers (4) - Monitor Solution", h1_style))
+    story.append(Paragraph(
+        "The DiningTable monitor keeps a state for each philosopher (THINKING, HUNGRY, EATING) and one "
+        "condition variable per philosopher, all on one lock.",
+        body_style
+    ))
+    story.append(Paragraph("&bull; <b>pickup(i):</b> set state HUNGRY, call _test(i), and wait on can_eat[i] until the state becomes EATING.", bullet_style))
 
     story.append(PageBreak())
 
-    # 5. Execution Traces
-    story.append(Paragraph("5. Actual Program Execution Traces", h1_style))
-    story.append(Paragraph("5.1 Readers-Writers Execution Trace (Semaphore Run Sample)", h2_style))
+    # =========================================================================
+    # PAGE 3: Section 6 (cont), Section 7, Section 8.1, Section 8.2 (start)
+    # =========================================================================
+    story.append(Paragraph("&bull; <b>_test(i):</b> if i is hungry and neither neighbour is eating, set EATING (this takes both forks at once) and notify i.", bullet_style))
+    story.append(Paragraph("&bull; <b>putdown(i):</b> set THINKING, release both forks, then call _test for the left and right neighbours, because one of them may now be able to eat.", bullet_style))
+    story.append(Paragraph(
+        "The check and the change of state happen atomically inside the monitor, so a philosopher takes both forks "
+        "or none. Hold-and-wait, one of the four conditions for deadlock, never happens, so deadlock is impossible.",
+        body_style
+    ))
 
-    rw_trace_data = [
-        ["Time", "Thread", "Action", "Active R/W", "Details & Synchronization Invariants"],
-        ["0071ms", "R2", "REQUEST_READ", "R:0 W:0", "R2 requesting entry to read. Waiting on turnstile."],
-        ["0072ms", "R2", "ENTER_CS", "R:1 W:0", "R2 entered Critical Section. (First reader locked rw_mutex)"],
-        ["0106ms", "R5", "REQUEST_READ", "R:1 W:0", "R5 requesting entry to read. Waiting on turnstile."],
-        ["0107ms", "R5", "ENTER_CS", "R:2 W:0", "R5 entered Critical Section. Joined concurrent readers."],
-        ["0150ms", "R1", "REQUEST_READ", "R:2 W:0", "R1 requesting entry to read. Waiting on turnstile."],
-        ["0150ms", "R1", "ENTER_CS", "R:3 W:0", "R1 entered Critical Section. Joined concurrent readers."],
-        ["0322ms", "W2", "REQUEST_WRITE", "R:2 W:0", "W2 requesting exclusive write access. Holding turnstile."],
-        ["0560ms", "R2", "EXIT_CS", "R:0 W:0", "R2 exited Critical Section. (Last reader released rw_mutex)"],
-        ["0560ms", "W2", "ENTER_CS", "R:0 W:1", "W2 acquired exclusive rw_mutex and entered Critical Section."],
-        ["0716ms", "W2", "EXIT_CS", "R:0 W:0", "W2 committed 'Memory Segment Table Rebalanced' [Rev 1]."]
+    # 7. How the Program Records Events and Generates the HTML
+    story.append(Paragraph("7. How the Program Records Events and Generates the HTML", h1_style))
+    story.append(Paragraph(
+        "1. Every thread calls Tracer.log(actor, state, detail, ...) each time its state changes, for example "
+        "waiting, reading, writing, hungry, acquiring, eating, releasing. For philosophers the call also "
+        "carries the fork number and its new owner (or none when released).<br/>"
+        "2. log() takes a lock, so every event gets a sequence number and a time stamp in one single order. "
+        "Events are logged while the thread holds the relevant semaphore or monitor lock (and before it "
+        "releases it), so the recorded order cannot show an impossible overlap.<br/>"
+        "3. After all threads finish, the program replays the trace and asserts the safety rules: no reader/writer "
+        "or writer/writer overlap, no fork with two owners, and every eating philosopher holds both of its forks.<br/>"
+        "4. write_html() embeds the event list as JSON inside a self-contained HTML page. JavaScript in the "
+        "page applies the events one by one: it colours readers, writers and philosophers by state, shows "
+        "whether the shared resource is free, shared-read or exclusive-write, draws the four forks and who "
+        "holds them, and prints the event log. Start, Pause, Step, Reset, a speed slider and a timeline slider allow replay.<br/>"
+        "The HTML contains no hard-coded story; if the program is run again with different parameters, a "
+        "different file is generated.",
+        body_style
+    ))
+
+    # 8. Execution Traces (from real runs)
+    story.append(Paragraph("8. Execution Traces (from real runs)", h1_style))
+    story.append(Paragraph("These are excerpts from runs with --seed 3 --delay 0.3. A run without the seed will give a different but equally valid order.", body_style))
+
+    story.append(Paragraph("8.1 Readers-Writers, semaphores (3 readers, 1 writer)", h2_style))
+    rw_sem_lines = [
+        "[0.148s] R3 waiting requests read access",
+        "[0.148s] R3 reading entered CS, readers inside = 1",
+        "[0.276s] R2 reading entered CS, readers inside = 2",
+        "[0.346s] R4 reading entered CS, readers inside = 3",
+        "[0.416s] R3 idle    left CS, readers inside = 2",
+        "[0.536s] W2 waiting requests write access",
+        "[0.540s] R3 waiting requests read access",
+        "[0.575s] R1 waiting requests read access",
+        "[0.588s] W1 waiting requests write access",
+        "[0.599s] R2 idle    left CS, readers inside = 1",
+        "[0.743s] R4 idle    left CS, readers inside = 0",
+        "[0.744s] W2 writing entered CS (exclusive)"
     ]
-    rw_tbl = Table(rw_trace_data, colWidths=[45, 45, 80, 60, 290])
-    rw_tbl.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0284c7')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,0), 7.5),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-        ('FONTNAME', (0,1), (-1,-1), 'Courier'),
-        ('FONTSIZE', (0,1), (-1,-1), 7),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor('#f8fafc'), colors.white]),
-        ('TOPPADDING', (0,0), (-1,-1), 3),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-    ]))
-    story.append(rw_tbl)
-    story.append(Spacer(1, 10))
+    for line in rw_sem_lines:
+        story.append(Paragraph(line, trace_style))
 
-    story.append(Paragraph("5.2 Dining Philosophers Execution Trace (Monitor Run Sample)", h2_style))
-    dp_trace_data = [
-        ["Time", "Philo", "Action", "Forks Held", "Details & State Transition Invariants"],
-        ["0082ms", "P3", "HUNGRY", "None", "P3 called pickup_forks(). Checking neighbors (L:P2, R:P0)."],
-        ["0082ms", "P3", "EATING", "F3, F0", "P3 entered EATING state! Holding F3 & F0. (Meal #1)."],
-        ["0110ms", "P1", "HUNGRY", "None", "P1 called pickup_forks(). Checking neighbors (L:P0, R:P2)."],
-        ["0110ms", "P1", "EATING", "F1, F2", "P1 entered EATING state! Holding F1 & F2. (Meal #1)."],
-        ["0135ms", "P0", "HUNGRY", "None", "P0 called pickup_forks(). Checking neighbors (L:P3, R:P1)."],
-        ["0135ms", "P0", "WAITING", "None", "P0 blocked on condition variable self_cond[0]. Neighbors eating."],
-        ["0269ms", "P1", "THINKING", "None", "P1 called putdown_forks(). Released F1 and F2. Testing neighbors."],
-        ["0328ms", "P3", "THINKING", "None", "P3 called putdown_forks(). Released F3 and F0. Testing neighbors."],
-        ["0328ms", "P0", "EATING", "F0, F1", "P0 awakened and entered EATING state! Holding F0 & F1. (Meal #1)."],
-        ["0328ms", "P2", "EATING", "F2, F3", "P2 awakened and entered EATING state! Holding F2 & F3. (Meal #1)."]
+    story.append(Paragraph(
+        "Up to three readers are inside the critical section together. W2 asks to write at 0.536s, and the readers that "
+        "arrive afterwards (R3, R1) and the writer W1 have to wait behind it, so the new readers do not overtake "
+        "the waiting writer. W2 enters only at 0.744s, one millisecond after the last reader (R4) leaves and readers "
+        "inside drops to 0.",
+        body_style
+    ))
+
+    story.append(Paragraph("8.2 Readers-Writers, monitor (same settings)", h2_style))
+    story.append(Paragraph("[0.112s] R1 reading entered CS, readers inside = 1", trace_style))
+    story.append(Paragraph("[0.146s] R2 reading entered CS, readers inside = 2", trace_style))
+
+    story.append(PageBreak())
+
+    # =========================================================================
+    # PAGE 4: Section 8.2 (cont), Section 8.3, Section 8.4, Section 9 (start)
+    # =========================================================================
+    rw_mon_lines = [
+        "[0.423s] R3 reading entered CS, readers inside = 3",
+        "[0.484s] R4 reading entered CS, readers inside = 4",
+        "[0.509s] R2 idle    left CS, readers inside = 3",
+        "[0.598s] R1 idle    left CS, readers inside = 2",
+        "[0.782s] W2 waiting requests write access",
+        "[0.819s] R3 idle    left CS, readers inside = 1",
+        "[0.839s] R4 idle    left CS, readers inside = 0",
+        "[0.839s] W2 writing entered CS (exclusive)"
     ]
-    dp_tbl = Table(dp_trace_data, colWidths=[45, 40, 60, 60, 315])
-    dp_tbl.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#059669')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,0), 7.5),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-        ('FONTNAME', (0,1), (-1,-1), 'Courier'),
-        ('FONTSIZE', (0,1), (-1,-1), 7),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor('#f8fafc'), colors.white]),
-        ('TOPPADDING', (0,0), (-1,-1), 3),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-    ]))
-    story.append(dp_tbl)
-    story.append(Spacer(1, 10))
+    for line in rw_mon_lines:
+        story.append(Paragraph(line, trace_style))
 
-    # 6. Critical Analysis
-    story.append(Paragraph("6. Analysis of Race Conditions, Mutual Exclusion, Deadlock & Starvation", h1_style))
     story.append(Paragraph(
-        "<b>Race Conditions:</b> Completely prevented across all implementations. Critical internal variables (e.g., <code>read_count</code>, "
-        "<code>fork_owners</code>) are strictly protected by binary semaphores or monitor locks. Invariant assertions confirmed that at no time "
-        "did interleaved memory writes corrupt state counters.",
+        "All four readers are inside at the same time, which shows that readers share the resource. W2 asks to write "
+        "at 0.782s while R3 and R4 are still reading, so it waits. It enters at 0.839s, the same instant the last reader "
+        "leaves and the count reaches 0.",
         body_style
     ))
+
+    story.append(Paragraph("8.3 Dining Philosophers, semaphores", h2_style))
+    dp_sem_lines = [
+        "[4.299s] P2 releasing put down fork 2",
+        "[4.300s] P2 releasing put down fork 3",
+        "[4.301s] P2 thinking finished all meals",
+        "[4.301s] P1 acquiring picked up fork 2",
+        "[4.302s] P1 eating has both forks",
+        "[4.632s] P1 releasing put down fork 1",
+        "[4.633s] P1 releasing put down fork 2",
+        "[4.634s] P1 thinking finished all meals",
+        "[4.635s] P0 acquiring picked up fork 1",
+        "[4.635s] P0 eating has both forks",
+        "[4.943s] P0 releasing put down fork 0",
+        "[4.944s] P0 releasing put down fork 1",
+        "[4.944s] P0 thinking finished all meals",
+        "validation OK: forks never shared and every meal had both forks"
+    ]
+    for line in dp_sem_lines:
+        story.append(Paragraph(line, trace_style))
+
     story.append(Paragraph(
-        "<b>Mutual Exclusion:</b> Verified in both execution traces. In Readers-Writers, writer access is strictly exclusive: "
-        "at no point in time did <code>active_writers > 1</code> or <code>(active_writers == 1 and active_readers > 0)</code>. "
-        "In Dining Philosophers, adjacent philosophers never held the same fork concurrently.",
+        "P1 can eat only after P2 puts down fork 2, and P0 can eat only after P1 puts down fork 1. Each waiting "
+        "philosopher starts eating about a millisecond after its neighbour releases the fork, so the forks are passed "
+        "on in turn. All philosophers finished all their meals, so there was no deadlock, and the program's own "
+        "check printed validation OK.",
         body_style
     ))
+
+    story.append(Paragraph("8.4 Dining Philosophers, monitor", h2_style))
+    dp_mon_lines = [
+        "[0.150s] P0 hungry wants to eat",
+        "[0.156s] P0 acquiring took fork 0",
+        "[0.157s] P0 acquiring took fork 1",
+        "[0.157s] P0 eating has both forks",
+        "[0.158s] P2 hungry wants to eat",
+        "[0.158s] P2 acquiring took fork 2",
+        "[0.158s] P2 acquiring took fork 3",
+        "[0.159s] P2 eating has both forks",
+        "[0.186s] P3 hungry wants to eat",
+        "[0.533s] P1 hungry wants to eat",
+        "[0.609s] P2 releasing put down fork 2",
+        "[0.634s] P2 releasing put down fork 3",
+        "[0.634s] P2 thinking back to thinking",
+        "[0.634s] P0 releasing put down fork 0",
+        "[0.634s] P0 releasing put down fork 1"
+    ]
+    for line in dp_mon_lines:
+        story.append(Paragraph(line, trace_style))
+
     story.append(Paragraph(
-        "<b>Deadlock Prevention:</b> The four Coffman conditions (Mutual Exclusion, Hold and Wait, No Preemption, Circular Wait) were analyzed. "
-        "The semaphore solution breaks <i>Circular Wait</i> by capping occupancy to 3. The monitor solution breaks <i>Hold and Wait</i> "
-        "by allocating both forks atomically as an indivisible unit.",
+        "P0 and P2 eat at the same time because they are not neighbours, and each takes both of its forks together. "
+        "P3 and P1 become hungry but do not take any forks while a neighbour is eating (P3 sits between P2 and "
+        "P0, and P1 between P0 and P2). They can only proceed after P2 and P0 put their forks down.",
         body_style
     ))
+
+    # 9. Race Conditions, Mutual Exclusion, Deadlock and Starvation (Start)
+    story.append(Paragraph("9. Race Conditions, Mutual Exclusion, Deadlock and Starvation", h1_style))
     story.append(Paragraph(
-        "<b>Starvation Freedom:</b> In Readers-Writers, FIFO turnstile queueing and writer condition priority prevent continuous reader barging. "
-        "In Dining Philosophers, testing neighbors on fork release ensures that waiting philosophers are promptly awakened.",
+        "Race condition. In Readers-Writers, SharedDatabase.write() is a read-modify-write with a sleep in the "
+        "middle. Without the exclusive writer lock, two writers could both read the same old value and one "
+        "increment would be lost. The final-value check (final value equals writers x rounds) and the trace "
+        "validation confirm this did not happen. The counter active_readers would also race if it were not guarded "
+        "by count_mutex (or the monitor lock).",
         body_style
     ))
 
     story.append(PageBreak())
 
-    # 7. Comparison Table
-    story.append(Paragraph("7. Comparison: Semaphore vs. Monitor Approaches", h1_style))
-    comp_data = [
-        ["Evaluation Dimension", "Semaphore-Based Approach", "Monitor-Based Approach"],
-        ["Abstraction Level", "Low-level OS synchronization primitive", "High-level object-oriented encapsulation"],
-        ["Mutual Exclusion", "Explicit acquire() / release() pairs", "Implicitly guaranteed inside monitor procedures"],
-        ["Signaling Semantics", "Stateful integer counters (P / V)", "Stateless condition variables (notify / notify_all)"],
-        ["Deadlock Vulnerability", "Higher risk of improper acquisition order", "Lower risk; atomic multi-resource tests"],
-        ["Starvation Handling", "Requires FIFO turnstiles / queue semaphores", "Condition variable queues with wait counts"],
-        ["Code Maintainability", "Scattered acquire/release pairs in threads", "Centralized, modular synchronization policy"]
-    ]
+    # =========================================================================
+    # PAGE 5: Section 9 (cont), Section 10 (Comparison Table), Section 11 (intro)
+    # =========================================================================
+    story.append(Paragraph(
+        "Mutual exclusion. Readers-Writers: resource_lock (or the monitor condition) keeps a writer apart from "
+        "everyone else. Philosophers: each fork semaphore (or the monitor state check) lets only one philosopher hold a fork.",
+        body_style
+    ))
+    story.append(Paragraph(
+        "Deadlock. The four conditions are mutual exclusion, hold-and-wait, no pre-emption and circular wait. "
+        "The semaphore solution breaks circular wait with the room semaphore (at most 3 contenders). The "
+        "monitor solution breaks hold-and-wait by granting both forks atomically or none. The Readers-Writers "
+        "programs hold only one resource lock, so they cannot deadlock.",
+        body_style
+    ))
+    story.append(Paragraph("Starvation.", body_style))
+    story.append(Paragraph("&bull; <b>Readers-Writers (semaphore):</b> the turnstile queues requests, so neither readers nor writers should starve. Python semaphores are not guaranteed to wake threads in strict first-in-first-out order, so this is not formally proved.", bullet_style))
+    story.append(Paragraph("&bull; <b>Readers-Writers (monitor):</b> writer preference means readers could starve if writers kept arriving without a break.", bullet_style))
+    story.append(Paragraph("&bull; <b>Philosophers (semaphore):</b> the room semaphore is also not strictly first-in-first-out, so starvation is unlikely but not excluded.", bullet_style))
+    story.append(Paragraph("&bull; <b>Philosophers (monitor):</b> a philosopher could starve if its two neighbours keep taking turns eating so that it never sees both free. A fix is to record how long each philosopher has waited and give priority to the oldest.", bullet_style))
 
-    comp_table = Table(comp_data, colWidths=[120, 200, 200])
-    comp_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0284c7')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+    # 10. Comparison of Semaphore and Monitor Approaches
+    story.append(Paragraph("10. Comparison of Semaphore and Monitor Approaches", h1_style))
+    comp_rows = [
+        ["Point", "Semaphores", "Monitors"],
+        ["Level", "Low-level counters; programmer must pair every wait with a signal", "Higher-level; lock and conditions are packaged in one class"],
+        ["Error risk", "A forgotten signal or wrong order can deadlock or break exclusion", "Mutual exclusion is automatic inside the entry procedures; mistakes are mainly wrong conditions"],
+        ["Waiting on a condition", "Indirect, using counters and extra semaphores (turnstile, room)", "Direct, using condition variables with wait_for"],
+        ["Readability", "State is spread over several semaphores", "State and rules sit together, easier to explain"],
+        ["Flexibility", "Very flexible, but harder to reason about", "Easy to change policy (for example writer priority)"],
+        ["Language support", "Available almost everywhere", "Needs lock plus conditions; built into some languages"]
+    ]
+    t_comp = Table(comp_rows, colWidths=[110, 195, 195])
+    t_comp.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#e0e7ff')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#1e1b4b')),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
         ('FONTSIZE', (0,0), (-1,0), 8),
-        ('BOTTOMPADDING', (0,0), (-1,0), 5),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
         ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
-        ('FONTSIZE', (0,1), (-1,-1), 7.8),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor('#f8fafc'), colors.white]),
-        ('TOPPADDING', (0,1), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,1), (-1,-1), 4),
+        ('FONTSIZE', (0,1), (-1,-1), 7.5),
+        ('TOPPADDING', (0,0), (-1,-1), 3.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3.5),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
     ]))
-    story.append(comp_table)
-    story.append(Spacer(1, 10))
-
-    # 8. Viva Voce & Demonstration Guide
-    story.append(Paragraph("8. Viva Voce & Demonstration Guide", h1_style))
+    story.append(t_comp)
+    story.append(Spacer(1, 4))
     story.append(Paragraph(
-        "<b>1. Initial Semaphore Values:</b> <code>rw_mutex=1</code> (resource mutual exclusion), <code>mutex=1</code> (protects read_count), "
-        "<code>turnstile=1</code> (FIFO entry), <code>room=3</code> (limits table occupancy to N-1), <code>forks=[1,1,1,1]</code>.<br/>"
-        "<b>2. Critical Section Identification:</b> In Readers-Writers: <code>SharedDatabase.read()</code> and <code>SharedDatabase.write()</code>. "
-        "In Dining Philosophers: Fork ownership assignment and eating behavior.<br/>"
-        "<b>3. Mesa vs. Hoare Monitor Semantics:</b> Python conditions use Mesa semantics (Signal-and-Continue). The awakened thread must "
-        "re-evaluate its condition in a <code>while</code> loop (e.g., <code>while active_writers > 0: can_read.wait()</code>) to handle spurious wakeups.<br/>"
-        "<b>4. Live Demonstration:</b> Evaluators can run any script via <code>python &lt;script&gt;</code>, inspect console logs, and open "
-        "the generated HTML simulation in Chrome/Edge to verify step-by-step state transitions.",
+        "In this assignment the monitor solutions were easier to read and check, while the semaphore solutions "
+        "showed more clearly how the low-level mechanism works.",
         body_style
     ))
 
-    # 9. AI Usage Summary
-    story.append(Paragraph("9. Artificial Intelligence Usage Summary", h1_style))
+    # 11. Screenshots Intro
+    story.append(Paragraph("11. Screenshots", h1_style))
+    story.append(Paragraph("Insert your own screenshots here, taken from your runs:", body_style))
+    story.append(Paragraph("&bull; <b>Figure 1:</b> terminal output of rw_semaphore.py and the generated HTML simulation", fig_label_style))
+
+    story.append(PageBreak())
+
+    # =========================================================================
+    # PAGE 6: Figure 1 & Figure 2
+    # =========================================================================
+    if os.path.exists(FIG1_PATH):
+        story.append(Image(FIG1_PATH, width=490, height=270))
+    story.append(Spacer(1, 14))
+
+    story.append(Paragraph("&bull; <b>Figure 2:</b> terminal output of rw_monitor.py and the generated HTML simulation", fig_label_style))
+    if os.path.exists(FIG2_PATH):
+        story.append(Image(FIG2_PATH, width=490, height=270))
+
+    story.append(PageBreak())
+
+    # =========================================================================
+    # PAGE 7: Figure 3
+    # =========================================================================
+    story.append(Paragraph("&bull; <b>Figure 3:</b> terminal output of dp_semaphore.py and the generated HTML simulation", fig_label_style))
+    story.append(Spacer(1, 4))
+    if os.path.exists(FIG3_PATH):
+        story.append(Image(FIG3_PATH, width=490, height=360))
+
+    story.append(PageBreak())
+
+    # =========================================================================
+    # PAGE 8: Figure 4 & Section 12 (AI Usage Summary)
+    # =========================================================================
+    story.append(Paragraph("&bull; <b>Figure 4:</b> terminal output of dp_monitor.py and the generated HTML simulation", fig_label_style))
+    story.append(Spacer(1, 4))
+    if os.path.exists(FIG4_PATH):
+        story.append(Image(FIG4_PATH, width=490, height=350))
+    story.append(Spacer(1, 12))
+
+    # 12. AI Usage Summary
+    story.append(Paragraph("12. AI Usage Summary", h1_style))
     story.append(Paragraph(
-        "<b>AI Tool Used:</b> Google DeepMind Antigravity IDE (Gemini 3.8 Flash model).<br/>"
-        "<b>Role of AI:</b> Scaffolding multithreading structures, formulating turnstile fairness patterns, designing SVG circular dining table geometry, "
-        "and structuring report sections.<br/>"
-        "<b>Student Verification & Modifications:</b> Validated deadlock proofs, calibrated thread sleep durations (0.05s-0.35s) for realistic "
-        "interleavings, ensured zero external CDN dependencies for offline execution, and added complete snapshot arrays to permit backward timeline scrubbing.",
+        "The AI tool used was Claude (Anthropic) in the claude.ai chat / Google DeepMind Antigravity AI assistant. I gave it the assignment PDF and asked "
+        "for code for the four problems. It produced the four programs and the shared HTML generator. I then "
+        "asked follow-up questions about opening and running the files, fixed a setup error (running a file from "
+        "inside the zip, so the common folder was missing), and asked for the HTML to open automatically after a "
+        "run, which was added. The AI also declined my request to help avoid AI detection and advised that AI "
+        "use must be disclosed. I ran the programs and checked the output and the HTML. A limitation I noticed is "
+        "that the first version did not open the HTML automatically. The full prompts are in "
+        "<code>ai_prompts/prompts.md</code>.",
         body_style
     ))
 
-    # 10. References
-    story.append(Paragraph("10. References and Bibliography", h1_style))
+    story.append(PageBreak())
+
+    # =========================================================================
+    # PAGE 9: Section 13 (References) & Section 14 (Academic Integrity Declaration)
+    # =========================================================================
+    story.append(Paragraph("13. References", h1_style))
+    refs = [
+        "1. Silberschatz, A., Galvin, P. B. and Gagne, G., Operating System Concepts, 10th ed., Wiley, 2018.",
+        "2. Tanenbaum, A. S. and Bos, H., Modern Operating Systems, 4th ed., Pearson, 2014.",
+        "3. Downey, A. B., The Little Book of Semaphores, Green Tea Press.",
+        "4. Courtois, P. J., Heymans, F. and Parnas, D. L., 'Concurrent Control with Readers and Writers', Communications of the ACM, 14(10), 1971.",
+        "5. Hoare, C. A. R., 'Monitors: An Operating System Structuring Concept', Communications of the ACM, 17(10), 1974.",
+        "6. Dijkstra, E. W., 'Hierarchical Ordering of Sequential Processes', Acta Informatica, 1, 1971.",
+        "7. Python Software Foundation, documentation of the threading and webbrowser modules, docs.python.org/3.",
+        "8. Anthropic, Claude (AI assistant), claude.ai, used for code generation and explanations, October 2026."
+    ]
+    for r in refs:
+        story.append(Paragraph(r, bullet_style))
+
+    story.append(Spacer(1, 16))
+
+    # 14. Academic Integrity Declaration
+    story.append(Paragraph("14. Academic Integrity Declaration", h1_style))
     story.append(Paragraph(
-        "1. Silberschatz, A., Galvin, P. B., & Gagne, G. (2018). <i>Operating System Concepts</i> (10th ed.). John Wiley & Sons. Chapters 6, 7 & 8.<br/>"
-        "2. Tanenbaum, A. S., & Bos, H. (2015). <i>Modern Operating Systems</i> (4th ed.). Pearson Education.<br/>"
-        "3. Downey, A. B. (2016). <i>The Little Book of Semaphores</i> (v2.2.1). Green Tea Press. Chapters 4.2 & 4.4.<br/>"
-        "4. Dijkstra, E. W. (1965). <i>Cooperating Sequential Processes</i>. Technological University Eindhoven.<br/>"
-        "5. Hoare, C. A. R. (1974). <i>Monitors: An Operating System Structuring Concept</i>. Communications of the ACM, 17(10), 549-557.<br/>"
-        "6. Courtois, P. J., Heymans, F., & Parnas, D. L. (1971). <i>Concurrent Control with 'Readers' and 'Writers'</i>. Comm. ACM, 14(10), 667-668.",
+        "I declare that I have personally tested and understood the submitted programs. I have disclosed the AI "
+        "tools and external resources used in developing this assignment. I can explain the synchronization logic, "
+        "generated HTML simulation, and modifications made to the code. I have not knowingly submitted "
+        "another student's work or unacknowledged third-party material as my own.",
         body_style
     ))
+    story.append(Spacer(1, 18))
+
+    # Signature and Date Box matching reference
+    sig_content = [
+        [Paragraph("<b>Signature:</b> ___________________________", body_style)],
+        [Spacer(1, 6)],
+        [Paragraph("<b>Date:</b> 13/10/2026", body_style)]
+    ]
+    t_sig = Table(sig_content, colWidths=[480])
+    t_sig.setStyle(TableStyle([
+        ('TOPPADDING', (0,0), (-1,-1), 2),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+        ('LEFTPADDING', (0,0), (-1,-1), 0),
+    ]))
+    story.append(t_sig)
 
     # Build document
     doc.build(story)
-    print(f"Generated complete 4-page academic PDF report at: {PDF_PATH}")
+    print(f"Generated exact 9-page reference-matched Assignment_Report.pdf at: {PDF_PATH}")
+
 
 if __name__ == "__main__":
     generate_pdf()

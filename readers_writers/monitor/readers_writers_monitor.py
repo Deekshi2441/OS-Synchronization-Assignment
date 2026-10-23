@@ -3,39 +3,17 @@
 Operating Systems Programming Assignment: Process Synchronization
 Problem 2: Readers-Writers Problem (Monitor-Based Implementation)
 ================================================================================
-Description:
-    Demonstrates Readers-Writers synchronization implemented via a Monitor
-    construct with Condition Variables (Signal and Continue discipline).
-    
-    Monitor Abstraction:
-        The `ReadersWritersMonitor` class encapsulates:
-        - Internal State: active_readers, active_writers, waiting_readers, waiting_writers
-        - Monitor Lock: An explicit internal lock guaranteeing mutual exclusion
-          within monitor entry procedures.
-        - Condition Variables:
-            * `can_read`: Readers wait when a writer is active or waiting (writer priority).
-            * `can_write`: Writers wait when any readers or another writer is active.
-
-    Synchronization Invariants:
-        1. Mutual Exclusion inside Monitor: Only one thread executes monitor logic at a time.
-        2. Resource Invariant: (active_writers == 0 and active_readers >= 0) OR
-                               (active_writers == 1 and active_readers == 0)
-        3. Writer Starvation Prevention: New readers queue if a writer is waiting.
-
-    Output:
-        Executes concurrent threads, logs execution events with state snapshots,
-        and generates an interactive visual simulation in HTML format.
-================================================================================
 """
 
 import os
 import sys
 import time
 import random
+import argparse
 import threading
+import webbrowser
 from typing import List, Dict, Any
 
-# Ensure common visualizer can be imported
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))
 if PROJECT_ROOT not in sys.path:
@@ -44,49 +22,49 @@ if PROJECT_ROOT not in sys.path:
 from common.html_templates import generate_rw_html
 
 
-# ------------------------------------------------------------------------------
-# Shared Resource (Critical Section Target)
-# ------------------------------------------------------------------------------
 class SharedDatabase:
-    """Represents the shared resource subject to concurrent read and write access."""
-    def __init__(self):
-        self.data: str = "System Configuration v1.0 [Stable]"
+    """Shared resource holding an integer counter subject to non-atomic read/modify/write."""
+    def __init__(self, delay: float = 0.1):
+        self.value: int = 0
+        self.delay: float = delay
+        self.data: str = "Counter: 0"
         self.revision: int = 0
-        self.write_count: int = 0
-        self.read_count: int = 0
 
-    def read(self) -> str:
-        self.read_count += 1
-        return f"{self.data} (Rev {self.revision})"
+    def read(self) -> int:
+        v = self.value
+        time.sleep(self.delay * 0.5)
+        return v
 
-    def write(self, new_val: str):
-        self.revision += 1
-        self.write_count += 1
-        self.data = f"{new_val} [Rev {self.revision}]"
+    def write(self, writer_id: str) -> int:
+        v = self.value
+        time.sleep(self.delay)  # Deliberately non-atomic sleep
+        self.value = v + 1
+        self.revision = self.value
+        self.data = f"Value={self.value} (updated by {writer_id})"
+        return self.value
 
 
-# ------------------------------------------------------------------------------
-# Thread-Safe Execution Trace Recorder
-# ------------------------------------------------------------------------------
 class ExecutionTracer:
-    """Thread-safe state recorder capturing event snapshots for visualization."""
+    """Thread-safe event logger capturing state transitions for HTML simulation."""
     def __init__(self, start_time: float):
         self.start_time = start_time
         self.events: List[Dict[str, Any]] = []
         self._lock = threading.Lock()
 
-    def record(self, entity_id: str, action: str, details: str,
-               active_readers: int, active_writers: int,
-               waiting_readers: int, waiting_writers: int,
-               readers_state: List[Dict[str, str]],
-               writers_state: List[Dict[str, str]],
-               shared_data: str, shared_revision: int,
-               sync_description: str):
+    def log(self, entity_id: str, action: str, details: str,
+            active_readers: int, active_writers: int,
+            waiting_readers: int, waiting_writers: int,
+            readers_state: List[Dict[str, str]],
+            writers_state: List[Dict[str, str]],
+            shared_data: str, shared_val: int,
+            sync_desc: str):
         with self._lock:
-            elapsed_ms = int((time.time() - self.start_time) * 1000)
+            elapsed = time.time() - self.start_time
+            elapsed_ms = int(elapsed * 1000)
             snapshot = {
                 "step": len(self.events),
                 "timestamp_ms": elapsed_ms,
+                "time_sec": f"{elapsed:.3f}s",
                 "entity_id": entity_id,
                 "action": action,
                 "details": details,
@@ -97,24 +75,19 @@ class ExecutionTracer:
                 "readers_state": [dict(r) for r in readers_state],
                 "writers_state": [dict(w) for w in writers_state],
                 "shared_data": shared_data,
-                "shared_data_version": shared_revision,
-                "sync_state": {
-                    "description": sync_description,
-                    "active_readers": active_readers,
-                    "active_writers": active_writers
-                }
+                "shared_data_version": shared_val,
+                "sync_state": {"description": sync_desc}
             }
             self.events.append(snapshot)
-            print(f"[{elapsed_ms:04d}ms] {entity_id:<4} | {action:<14} | R:{active_readers} W:{active_writers} | {details}")
+            print(f"[{elapsed:.3f}s] {entity_id:<3} {action:<14} | R:{active_readers} W:{active_writers} | {details}")
 
 
-# ------------------------------------------------------------------------------
-# Monitor Implementation (Condition Variables)
-# ------------------------------------------------------------------------------
 class ReadersWritersMonitor:
     """
-    Monitor abstraction for Readers-Writers with Writer Preference
-    to ensure neither readers nor writers suffer starvation.
+    Monitor abstraction for Readers-Writers using:
+      - monitor lock (threading.Lock)
+      - condition variables: ok_to_read, ok_to_write
+      - writer preference policy to prevent writer starvation
     """
     def __init__(self, tracer: ExecutionTracer, db: SharedDatabase,
                  num_readers: int, num_writers: int):
@@ -123,18 +96,15 @@ class ReadersWritersMonitor:
         self.num_readers = num_readers
         self.num_writers = num_writers
 
-        # Monitor synchronization primitives
         self._lock = threading.Lock()
-        self.can_read = threading.Condition(self._lock)
-        self.can_write = threading.Condition(self._lock)
+        self.ok_to_read = threading.Condition(self._lock)
+        self.ok_to_write = threading.Condition(self._lock)
 
-        # Monitor state variables
         self.active_readers = 0
-        self.active_writers = 0
-        self.waiting_readers = 0
+        self.writing = False
         self.waiting_writers = 0
+        self.waiting_readers = 0
 
-        # UI state tracking
         self.readers_status = {f"R{i+1}": "IDLE" for i in range(num_readers)}
         self.writers_status = {f"W{i+1}": "IDLE" for i in range(num_writers)}
 
@@ -142,241 +112,154 @@ class ReadersWritersMonitor:
         self.total_reads = 0
         self.total_writes = 0
 
-    def _get_readers_snapshot(self):
+    def _readers_snap(self):
         return [{"id": k, "status": v} for k, v in self.readers_status.items()]
 
-    def _get_writers_snapshot(self):
+    def _writers_snap(self):
         return [{"id": k, "status": v} for k, v in self.writers_status.items()]
 
-    # --- Monitor Entry Procedure: start_read ---
-    def start_read(self, reader_id: str):
+    def start_read(self, r_id: str):
         with self._lock:
             self.waiting_readers += 1
-            self.readers_status[reader_id] = "WAITING"
-            self.tracer.record(
-                entity_id=reader_id,
-                action="REQUEST_READ",
-                details=f"{reader_id} called start_read(). Waiting if active_writers > 0 or waiting_writers > 0.",
-                active_readers=self.active_readers,
-                active_writers=self.active_writers,
-                waiting_readers=self.waiting_readers,
-                waiting_writers=self.waiting_writers,
-                readers_state=self._get_readers_snapshot(),
-                writers_state=self._get_writers_snapshot(),
-                shared_data=self.db.data,
-                shared_revision=self.db.revision,
-                sync_description=f"Monitor: active_writers={self.active_writers}, waiting_writers={self.waiting_writers}"
-            )
+            self.readers_status[r_id] = "WAITING"
+            self.tracer.log(r_id, "REQUEST_READ", f"{r_id} waiting requests read access",
+                            self.active_readers, 1 if self.writing else 0, self.waiting_readers, self.waiting_writers,
+                            self._readers_snap(), self._writers_snap(), self.db.data, self.db.value, "Monitor: waiting if writing or waiting_writers > 0")
 
-            # Wait while a writer is writing OR writers are waiting (prevents writer starvation)
-            while self.active_writers > 0 or self.waiting_writers > 0:
-                self.can_read.wait()
+            # Wait while a writer is writing OR writers are waiting (writer preference)
+            while self.writing or self.waiting_writers > 0:
+                self.ok_to_read.wait()
 
             self.waiting_readers -= 1
             self.active_readers += 1
-            self.readers_status[reader_id] = "READING"
+            self.readers_status[r_id] = "READING"
             if self.active_readers > self.max_concurrent_readers:
                 self.max_concurrent_readers = self.active_readers
 
-            self.tracer.record(
-                entity_id=reader_id,
-                action="ENTER_CS",
-                details=f"{reader_id} granted read access. Total active readers: {self.active_readers}.",
-                active_readers=self.active_readers,
-                active_writers=self.active_writers,
-                waiting_readers=self.waiting_readers,
-                waiting_writers=self.waiting_writers,
-                readers_state=self._get_readers_snapshot(),
-                writers_state=self._get_writers_snapshot(),
-                shared_data=self.db.data,
-                shared_revision=self.db.revision,
-                sync_description=f"Monitor: {self.active_readers} readers concurrently in CS"
-            )
+            self.tracer.log(r_id, "ENTER_CS", f"{r_id} reading entered CS, readers inside = {self.active_readers}",
+                            self.active_readers, 0, self.waiting_readers, self.waiting_writers,
+                            self._readers_snap(), self._writers_snap(), self.db.data, self.db.value, f"Monitor: {self.active_readers} active readers")
 
-    # --- Monitor Exit Procedure: end_read ---
-    def end_read(self, reader_id: str, read_val: str):
+    def end_read(self, r_id: str, read_val: int):
         with self._lock:
             self.active_readers -= 1
             self.total_reads += 1
-            self.readers_status[reader_id] = "IDLE"
+            self.readers_status[r_id] = "IDLE"
 
-            # If last reader exiting and writers are waiting, signal one writer
+            # If last reader, wake one waiting writer
             if self.active_readers == 0 and self.waiting_writers > 0:
-                self.can_write.notify()
-                signal_msg = "Last reader signaled can_write condition variable."
+                self.ok_to_write.notify()
+                signal_msg = "Last reader notified waiting writer"
             elif self.active_readers == 0:
-                self.can_read.notify_all()
-                signal_msg = "Last reader signaled can_read condition variable."
+                self.ok_to_read.notify_all()
+                signal_msg = "Last reader notified waiting readers"
             else:
-                signal_msg = f"{self.active_readers} readers still active."
+                signal_msg = f"{self.active_readers} readers still active"
 
-            self.tracer.record(
-                entity_id=reader_id,
-                action="EXIT_CS",
-                details=f"{reader_id} finished read ('{read_val}'). {signal_msg}",
-                active_readers=self.active_readers,
-                active_writers=self.active_writers,
-                waiting_readers=self.waiting_readers,
-                waiting_writers=self.waiting_writers,
-                readers_state=self._get_readers_snapshot(),
-                writers_state=self._get_writers_snapshot(),
-                shared_data=self.db.data,
-                shared_revision=self.db.revision,
-                sync_description=f"Monitor: active_readers={self.active_readers}"
-            )
+            self.tracer.log(r_id, "EXIT_CS", f"{r_id} idle left CS, readers inside = {self.active_readers} (read value={read_val})",
+                            self.active_readers, 0, self.waiting_readers, self.waiting_writers,
+                            self._readers_snap(), self._writers_snap(), self.db.data, self.db.value, signal_msg)
 
-    # --- Monitor Entry Procedure: start_write ---
-    def start_write(self, writer_id: str):
+    def start_write(self, w_id: str):
         with self._lock:
             self.waiting_writers += 1
-            self.writers_status[writer_id] = "WAITING"
-            self.tracer.record(
-                entity_id=writer_id,
-                action="REQUEST_WRITE",
-                details=f"{writer_id} called start_write(). Waiting if active_readers > 0 or active_writers > 0.",
-                active_readers=self.active_readers,
-                active_writers=self.active_writers,
-                waiting_readers=self.waiting_readers,
-                waiting_writers=self.waiting_writers,
-                readers_state=self._get_readers_snapshot(),
-                writers_state=self._get_writers_snapshot(),
-                shared_data=self.db.data,
-                shared_revision=self.db.revision,
-                sync_description=f"Monitor: active_readers={self.active_readers}, active_writers={self.active_writers}"
-            )
+            self.writers_status[w_id] = "WAITING"
+            self.tracer.log(w_id, "REQUEST_WRITE", f"{w_id} waiting requests write access",
+                            self.active_readers, 1 if self.writing else 0, self.waiting_readers, self.waiting_writers,
+                            self._readers_snap(), self._writers_snap(), self.db.data, self.db.value, "Monitor: waiting until active_readers == 0 and not writing")
 
-            # Wait until no active readers and no active writer
-            while self.active_readers > 0 or self.active_writers > 0:
-                self.can_write.wait()
+            while self.active_readers > 0 or self.writing:
+                self.ok_to_write.wait()
 
             self.waiting_writers -= 1
-            self.active_writers = 1
-            self.writers_status[writer_id] = "WRITING"
+            self.writing = True
+            self.writers_status[w_id] = "WRITING"
 
-            self.tracer.record(
-                entity_id=writer_id,
-                action="ENTER_CS",
-                details=f"{writer_id} granted exclusive write access via monitor.",
-                active_readers=self.active_readers,
-                active_writers=self.active_writers,
-                waiting_readers=self.waiting_readers,
-                waiting_writers=self.waiting_writers,
-                readers_state=self._get_readers_snapshot(),
-                writers_state=self._get_writers_snapshot(),
-                shared_data=self.db.data,
-                shared_revision=self.db.revision,
-                sync_description="Monitor: Exclusive Writer lock active"
-            )
+            self.tracer.log(w_id, "ENTER_CS", f"{w_id} writing entered CS (exclusive)",
+                            self.active_readers, 1, self.waiting_readers, self.waiting_writers,
+                            self._readers_snap(), self._writers_snap(), self.db.data, self.db.value, f"Monitor: Exclusive writer {w_id}")
 
-    # --- Monitor Exit Procedure: end_write ---
-    def end_write(self, writer_id: str, new_val: str):
+    def end_write(self, w_id: str, new_val: int):
         with self._lock:
-            self.active_writers = 0
+            self.writing = False
             self.total_writes += 1
-            self.writers_status[writer_id] = "IDLE"
+            self.writers_status[w_id] = "IDLE"
 
-            # If other writers waiting, awaken one writer; otherwise awaken all waiting readers
             if self.waiting_writers > 0:
-                self.can_write.notify()
-                signal_msg = "Signaled waiting writer (can_write.notify())."
+                self.ok_to_write.notify()
+                signal_msg = "Woke one waiting writer"
             else:
-                self.can_read.notify_all()
-                signal_msg = "Signaled all waiting readers (can_read.notify_all())."
+                self.ok_to_read.notify_all()
+                signal_msg = "Woke all waiting readers"
 
-            self.tracer.record(
-                entity_id=writer_id,
-                action="EXIT_CS",
-                details=f"{writer_id} completed write '{new_val}'. {signal_msg}",
-                active_readers=self.active_readers,
-                active_writers=self.active_writers,
-                waiting_readers=self.waiting_readers,
-                waiting_writers=self.waiting_writers,
-                readers_state=self._get_readers_snapshot(),
-                writers_state=self._get_writers_snapshot(),
-                shared_data=self.db.data,
-                shared_revision=self.db.revision,
-                sync_description="Monitor: Writer exited, lock free"
-            )
+            self.tracer.log(w_id, "EXIT_CS", f"{w_id} idle left CS, committed value = {new_val}",
+                            self.active_readers, 0, self.waiting_readers, self.waiting_writers,
+                            self._readers_snap(), self._writers_snap(), self.db.data, self.db.value, signal_msg)
 
 
-# ------------------------------------------------------------------------------
-# Thread Functions
-# ------------------------------------------------------------------------------
-def reader_thread(reader_id: str, monitor: ReadersWritersMonitor, iterations: int):
-    for _ in range(iterations):
-        time.sleep(random.uniform(0.05, 0.25))
-        monitor.start_read(reader_id)
-
-        # Critical Section: Read shared resource
+def reader_thread(r_id: str, monitor: ReadersWritersMonitor, rounds: int, delay: float):
+    for _ in range(rounds):
+        time.sleep(random.uniform(delay * 0.5, delay * 1.5))
+        monitor.start_read(r_id)
         val = monitor.db.read()
-        time.sleep(random.uniform(0.1, 0.25))
-
-        monitor.end_read(reader_id, val)
-
-
-def writer_thread(writer_id: str, monitor: ReadersWritersMonitor, iterations: int):
-    updates = [
-        "Thread Pool Resized to 16",
-        "TLB Flush Completed",
-        "Inode Table Synced to Disk",
-        "Crypto Key Derivation Finished"
-    ]
-    for i in range(iterations):
-        time.sleep(random.uniform(0.1, 0.35))
-        monitor.start_write(writer_id)
-
-        # Critical Section: Write shared resource
-        new_val = updates[(i + hash(writer_id)) % len(updates)]
-        monitor.db.write(new_val)
-        time.sleep(random.uniform(0.15, 0.3))
-
-        monitor.end_write(writer_id, new_val)
+        time.sleep(random.uniform(delay * 0.4, delay * 1.0))
+        monitor.end_read(r_id, val)
 
 
-# ------------------------------------------------------------------------------
-# Main Execution Entry Point
-# ------------------------------------------------------------------------------
+def writer_thread(w_id: str, monitor: ReadersWritersMonitor, rounds: int, delay: float):
+    for _ in range(rounds):
+        time.sleep(random.uniform(delay * 0.8, delay * 2.0))
+        monitor.start_write(w_id)
+        val = monitor.db.write(w_id)
+        time.sleep(random.uniform(delay * 0.5, delay * 1.2))
+        monitor.end_write(w_id, val)
+
+
 def main():
+    parser = argparse.ArgumentParser(description="Readers-Writers Problem - Monitor Implementation")
+    parser.add_argument("--readers", type=int, default=4, help="Number of reader threads")
+    parser.add_argument("--writers", type=int, default=2, help="Number of writer threads")
+    parser.add_argument("--rounds", type=int, default=3, help="Rounds per thread")
+    parser.add_argument("--delay", type=float, default=0.2, help="Base timing delay in seconds")
+    parser.add_argument("--seed", type=int, default=None, help="Random seed for repeatability")
+    parser.add_argument("--out", type=str, default=None, help="Output HTML file path")
+    parser.add_argument("--no-browser", action="store_true", help="Do not automatically open browser")
+    args = parser.parse_args()
+
+    if args.seed is not None:
+        random.seed(args.seed)
+
     print("=" * 70)
-    print("  Readers-Writers Problem - Monitor Implementation Starting")
+    print(f"Readers-Writers (Monitor) | Readers: {args.readers}, Writers: {args.writers}, Rounds: {args.rounds}")
     print("=" * 70)
 
     start_time = time.time()
     tracer = ExecutionTracer(start_time)
-    db = SharedDatabase()
-
-    num_readers = 5
-    num_writers = 2
-    reader_iters = 3
-    writer_iters = 3
-
-    monitor = ReadersWritersMonitor(tracer, db, num_readers, num_writers)
+    db = SharedDatabase(delay=args.delay)
+    monitor = ReadersWritersMonitor(tracer, db, args.readers, args.writers)
 
     threads = []
-    for i in range(num_readers):
-        r_id = f"R{i+1}"
-        t = threading.Thread(target=reader_thread, args=(r_id, monitor, reader_iters), name=r_id)
-        threads.append(t)
-
-    for j in range(num_writers):
-        w_id = f"W{j+1}"
-        t = threading.Thread(target=writer_thread, args=(w_id, monitor, writer_iters), name=w_id)
-        threads.append(t)
+    for i in range(args.readers):
+        threads.append(threading.Thread(target=reader_thread, args=(f"R{i+1}", monitor, args.rounds, args.delay)))
+    for j in range(args.writers):
+        threads.append(threading.Thread(target=writer_thread, args=(f"W{j+1}", monitor, args.rounds, args.delay)))
 
     random.shuffle(threads)
     for t in threads:
         t.start()
-
     for t in threads:
         t.join()
 
+    # Safety Assertions & Validation
+    expected_val = args.writers * args.rounds
+    assert db.value == expected_val, f"Race condition detected! Expected {expected_val}, got {db.value}"
     print("-" * 70)
-    print(f"Simulation completed. Total events: {len(tracer.events)}")
-    print(f"Total Reads: {monitor.total_reads} | Total Writes: {monitor.total_writes}")
-    print(f"Max Concurrent Readers: {monitor.max_concurrent_readers}")
-    print(f"Final Shared Data: {db.data}")
+    print(f"validation OK: final value equals writers x rounds ({db.value})")
+    print(f"Simulation completed. Total events: {len(tracer.events)} | Max concurrent readers: {monitor.max_concurrent_readers}")
     print("-" * 70)
 
+    out_path = args.out or os.path.join(PROJECT_ROOT, "generated_html", "readers_writers_monitor.html")
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     summary_stats = {
         "total_events": len(tracer.events),
         "total_reads": monitor.total_reads,
@@ -384,23 +267,17 @@ def main():
         "max_concurrent_readers": monitor.max_concurrent_readers,
         "policy": "Monitor with Writer Preference Condition Variables"
     }
+    html_content = generate_rw_html("Readers-Writers Problem", "Monitor with Condition Variables (ok_to_read, ok_to_write)", tracer.events, summary_stats)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
 
-    output_dir = os.path.join(PROJECT_ROOT, "generated_html")
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "readers_writers_monitor.html")
+    alt_path = os.path.join(PROJECT_ROOT, "generated_html", "rw_monitor.html")
+    with open(alt_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
 
-    html_code = generate_rw_html(
-        title="Readers-Writers Problem",
-        mechanism_type="Monitor with Condition Variables (can_read, can_write)",
-        trace_data=tracer.events,
-        summary_stats=summary_stats
-    )
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(html_code)
-
-    print(f"SUCCESS: Generated HTML simulation at:\n  --> {output_path}")
-    print("=" * 70)
+    print(f"Generated HTML simulation at: {out_path}")
+    if not args.no_browser:
+        webbrowser.open(f"file:///{os.path.abspath(out_path)}")
 
 
 if __name__ == "__main__":
